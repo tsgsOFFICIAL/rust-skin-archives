@@ -1,3 +1,8 @@
+// Pages serves git lfs files as tiny pointer files, so on the live site icons and models come from
+// github's lfs address instead. Locally (live server) the relative folders are used.
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
+const ASSET_BASE = IS_LOCAL ? "" : "https://media.githubusercontent.com/media/tsgsOFFICIAL/rust-skin-archives/main/docs/";
+
 let allSkins = [];
 let currentFiltered = [];
 let currentSort = "default";
@@ -323,7 +328,7 @@ function buildCardHTML(skin) {
 	const cents = getCheapestCents(skin);
 	const priceText = cents > 0 && cents < Infinity ? `$${(cents / 100).toFixed(2)}` : "-";
 	const hasModel = skin.modelUrls && skin.modelUrls.length > 0;
-	const base = "icons";
+	const base = ASSET_BASE + "icons";
 	const img = `${base}/${skin.id}.png`;
 	const steamPriceText = skin.steamPriceInUsdCents > 0 ? `$${(skin.steamPriceInUsdCents / 100).toFixed(2)}` : "-";
 
@@ -651,7 +656,7 @@ function shuffleInPlace(array) {
 
 function buildWheelReel(winnerSkin) {
 	const reel = document.getElementById("wheelSpinner");
-	const iconBase = "icons";
+	const iconBase = ASSET_BASE + "icons";
 	const fallback = "https://placehold.co/245x210/111/666?text=No+Image";
 	const pool = shuffleInPlace([...currentFiltered]);
 	const reelSkins = [];
@@ -765,7 +770,7 @@ function pickRandomSkin() {
 
 // --- Modal ------------------------------------------------------
 function showSkinModal(skin, showRollAgain = false) {
-	const base = "icons";
+	const base = ASSET_BASE + "icons";
 	document.getElementById("modalImg").src = `${base}/${skin.id}.png`;
 	document.getElementById("modalName").textContent = skin.displayName;
 	document.getElementById("modalShort").textContent = skin.itemShortName || "";
@@ -884,7 +889,7 @@ function openViewer(skin) {
 	modal.style.display = "flex";
 	updateBodyScrollLock();
 
-	const url = `models/${skin.modelUrls[0]}`;
+	const url = `${ASSET_BASE}models/${skin.modelUrls[0]}`;
 	const failed = (err) => {
 		console.error(err);
 		loader.style.display = "none";
