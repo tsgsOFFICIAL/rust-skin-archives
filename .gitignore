@@ -1,0 +1,31 @@
+# extracted skin textures (~37 GB), rebuilt from the game and steam
+pipeline/data/all-skins-textures/
+
+# build output
+bin/
+obj/
+.vs/
+*.user
+
+# temp and generated stuff
+*.tmp
+*.prev
+pipeline/data/batch-failures.tsv
+pipeline/data/alpha-scan.tsv
+pipeline/data/normal-scan.tsv
+
+# notes, logs and weekly reports
+pipeline/verification-log.md
+pipeline/data/weekly/
+*.log
+
+# licence key, keep it out of the repo
+pipeline/RustSkinToGlb/sixlabors.lic
+
+# secrets
+.env
+*.key
+
+# os junk
+Thumbs.db
+.DS_Store

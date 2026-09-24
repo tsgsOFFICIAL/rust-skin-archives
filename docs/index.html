@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Rust Skin Viewer</title>
+        <meta charset="utf-8">
+        <meta name="description" content="Discover EVERY Rust skin in one place - weapons, armor, and rare cosmetics included. Browse the full collection and find the sickest skins instantly.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Facebook Meta Tags (600x220px, 13.7 KB) -->
+        <meta property="og:url" content="https://tsgsofficial.github.io/rust-skin-archives/">
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="Rust Skin Viewer">
+        <meta property="og:description" content="Discover EVERY Rust skin in one place - weapons, armor, and rare cosmetics included. Browse the full collection and find the sickest skins instantly.">
+        <meta property="og:image" content="og-image.png">
+
+        <!-- Twitter Meta Tags (600x220px, 13.7 KB) -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta property="twitter:domain" content="tsgsofficial.github.io">
+        <meta property="twitter:url" content="https://tsgsofficial.github.io/rust-skin-archives/">
+        <meta name="twitter:title" content="Rust Skin Viewer">
+        <meta name="twitter:description" content="Discover EVERY Rust skin in one place - weapons, armor, and rare cosmetics included. Browse the full collection and find the sickest skins instantly.">
+        <meta name="twitter:image" content="og-image.png">
+
+        <link rel="icon" href="logo.png">
+
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap">
+        <link rel="stylesheet" href="./css/variables.css">
+        <link rel="stylesheet" href="./css/main.css">
+
+        <script>window.Viewer3DReady = new Promise((r) => { window.__viewer3dResolve = r; });</script>
+        <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+        <script type="module" src="./js/viewer3d.js"></script>
+        <script src="./js/app.js" defer></script>
+    </head>
+    <body>
+
+        <!-- Site Header -->
+        <header class="header" role="banner">
+            <div class="header-content">
+                <h1 class="title">RUST</h1>
+                <p class="tagline">SKIN ARCHIVES</p>
+                <p class="credit">made with <span class="heart" aria-label="love">♥</span> by <strong>tsgsOFFICIAL</strong></p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main" id="main-content">
+
+            <!-- Filters & Search Toolbar -->
+            <section class="toolbar" aria-label="Search and filter skins">
+
+                <!-- Search -->
+                <div class="search-box">
+                    <label for="searchBox" class="sr-only">Search skins</label>
+                    <input type="search" id="searchBox" placeholder="Search any skin or property..." autocomplete="off" onkeyup="applyFilters()" aria-label="Search skins by name or property">
+                </div>
+
+                <!-- Filters Row -->
+                <div class="filter-bar" role="group" aria-label="Filter skins">
+
+                    <div class="filter-col">
+                        <label for="minPrice">Min Price</label>
+                        <input type="number" id="minPrice" placeholder="0" min="0" step="0.01" oninput="applyFilters()">
+                    </div>
+
+                    <div class="filter-col">
+                        <label for="maxPrice">Max Price</label>
+                        <input type="number" id="maxPrice" placeholder="∞" min="0" step="0.01" oninput="applyFilters()">
+                    </div>
+
+                    <div class="filter-col">
+                        <label for="typeFilter">Type</label>
+                        <input type="text" id="typeFilter" placeholder="weapon, clothing..." onkeyup="applyFilters()">
+                    </div>
+
+                    <fieldset class="toggles">
+                        <legend class="sr-only">Skin properties</legend>
+                        <label class="toggle-item">
+                            <input type="checkbox" id="glowFilter" onchange="applyFilters()">
+                            <span>Glow</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" id="cutoutFilter" onchange="applyFilters()">
+                            <span>Cutout</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" id="twitchFilter" onchange="applyFilters()">
+                            <span>Twitch</span>
+                        </label>
+                    </fieldset>
+
+                    <div class="actions">
+                        <button type="button" onclick="clearFilters()" class="btn-clear" aria-label="Clear all filters">CLEAR</button>
+                        <button type="button" onclick="pickRandomSkin()" class="btn-random">RANDOM SKIN</button>
+                    </div>
+                </div>
+
+                <!-- Sort Bar -->
+                <nav class="sort-bar" aria-label="Sort skins">
+                    <span class="sort-text" aria-hidden="true">SORT</span>
+                    <button type="button" class="sort-btn active" data-sort="default" onclick="setSort(this, 'default')">DEFAULT</button>
+                    <button type="button" class="sort-btn" data-sort="name-asc" onclick="setSort(this, 'name-asc')">A–Z</button>
+                    <button type="button" class="sort-btn" data-sort="name-desc" onclick="setSort(this, 'name-desc')">Z–A</button>
+                    <button type="button" class="sort-btn" data-sort="price-asc" onclick="setSort(this, 'price-asc')">PRICE ↑</button>
+                    <button type="button" class="sort-btn" data-sort="price-desc" onclick="setSort(this, 'price-desc')">PRICE ↓</button>
+                    <button type="button" class="sort-btn" data-sort="new" onclick="setSort(this, 'new')">NEWEST</button>
+                </nav>
+
+            </section>
+
+            <!-- Status / Results Count -->
+            <p id="status" class="status" role="status" aria-live="polite">LOADING ARSENAL...</p>
+
+            <!-- Skin Grid -->
+            <section class="grid" id="grid" aria-label="Skin results"></section>
+
+        </main>
+
+        <!-- =======================================
+             RANDOM SKIN WHEEL
+             ======================================= -->
+        <div class="wheel-overlay" id="wheelOverlay" role="dialog" aria-modal="true" aria-labelledby="wheelStatus" aria-hidden="true">
+            <div class="wheel-machine">
+                <div class="wheel-machine-label" aria-hidden="true">RANDOM SKIN</div>
+                <div class="wheel-viewport-wrap">
+                    <div class="wheel-marker" aria-hidden="true"></div>
+                    <div class="wheel-viewport">
+                        <div class="wheel-reel" id="wheelSpinner"></div>
+                    </div>
+                </div>
+            </div>
+            <p id="wheelStatus" class="wheel-status" role="status" aria-live="polite">SPINNING...</p>
+        </div>
+
+        <!-- =======================================
+             RANDOM SKIN MODAL
+             ======================================= -->
+        <div class="modal" id="randomModal" role="dialog" aria-modal="true" aria-labelledby="modalName" onclick="if(event.target.id==='randomModal') hideModal()">
+            <article class="modal-content" onclick="event.stopImmediatePropagation()">
+
+                <div class="modal-inner">
+
+                    <!-- Skin visual + identity -->
+                    <div class="modal-visual">
+                        <img id="modalImg" src="" alt="" onerror="this.src='https://placehold.co/245x210/111/666?text=No+Image'">
+                        <h2 id="modalName"></h2>
+                        <p id="modalShort"></p>
+                    </div>
+
+                    <!-- Price breakdown -->
+                    <div id="modalPrices" class="modal-prices" aria-label="Market prices"></div>
+
+                </div>
+
+                <footer class="modal-footer">
+                    <button id="open3dButton" type="button" class="btn-secondary">VIEW 3D</button>
+                    <button type="button" onclick="hideModal()" class="btn-secondary">CLOSE</button>
+                    <button id="rollAgainButton" type="button" onclick="pickRandomSkin()" class="btn-primary">ROLL AGAIN</button>
+                </footer>
+
+            </article>
+        </div>
+
+        <!-- =======================================
+             3D VIEWER MODAL
+             ======================================= -->
+        <div class="modal" id="viewerModal" role="dialog" aria-modal="true" aria-labelledby="viewerName" onclick="if(event.target.id==='viewerModal') hideViewer()">
+            <article class="modal-content viewer-content" onclick="event.stopImmediatePropagation()">
+
+                <header class="viewer-top">
+                    <h2 id="viewerName"></h2>
+                    <label class="day-toggle" title="Toggle day/night lighting">
+                        <input type="checkbox" id="dayNightToggle" checked onchange="toggleDayNight(this.checked)">
+                        <span>DAY</span>
+                    </label>
+                </header>
+
+                <div id="viewerContainer">
+                    <canvas id="renderCanvas" touch-action="none" aria-label="3D model viewer"></canvas>
+                    <div id="viewerLoader" class="loader" aria-live="polite" aria-label="Loading 3D model">
+                        <div class="spinner" role="img" aria-label="Loading"></div>
+                        <p>LOADING MODEL</p>
+                    </div>
+                </div>
+
+                <p id="viewerNoModel" class="no-model" aria-live="polite">No 3D model available.</p>
+
+                <p class="viewer-hint" aria-label="Controls: drag to rotate, scroll to zoom, right-click to pan">
+                    DRAG TO ROTATE &bull; SCROLL TO ZOOM &bull; RIGHT CLICK TO PAN
+                </p>
+
+                <button type="button" onclick="hideViewer()" class="btn-secondary close-btn">CLOSE VIEWER</button>
+
+            </article>
+        </div>
+
+    </body>
+</html>

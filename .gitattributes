@@ -1,0 +1,6 @@
+# models and icons go through git lfs, the site itself stays in normal git
+docs/models/** filter=lfs diff=lfs merge=lfs -text
+docs/icons/**   filter=lfs diff=lfs merge=lfs -text
+
+# the weekly job edits data.json as text, don't touch the line endings
+pipeline/data/data.json -text
