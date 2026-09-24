@@ -8121,7 +8121,7 @@
     {
         "id":  "3069492016",
         "itemDefId":  "11268",
-        "name":  "Blooprintâ€™s Welcome Rock",
+        "name":  "Blooprint’s Welcome Rock",
         "itemShortName":  "rock",
         "category":  "Weapon",
         "itemType":  "Rock",
@@ -47727,7 +47727,7 @@
     {
         "id":  "1587959070",
         "itemDefId":  "30412",
-        "name":  "Ð¡hristmas Night",
+        "name":  "Сhristmas Night",
         "itemShortName":  "furnace",
         "category":  "Deployable",
         "itemType":  "Furnace",
@@ -47750,7 +47750,7 @@
     {
         "id":  "1569952704",
         "itemDefId":  "30600",
-        "name":  "Ð¡ÐœÐ­Ð Ð¢Ð¬",
+        "name":  "СМЭРТЬ",
         "itemShortName":  "shotgun.double",
         "category":  "Weapon",
         "itemType":  "Double Barrel Shotgun",
@@ -92600,7 +92600,7 @@
     {
         "id":  "2960599708",
         "itemDefId":  "52907",
-        "name":  "No Mercy Revolver",
+        "name":  "No Mercy Revolver - E Class",
         "itemShortName":  "pistol.revolver",
         "category":  "Weapon",
         "itemType":  "Revolver",
@@ -114381,7 +114381,7 @@
     {
         "id":  "3419354390",
         "itemDefId":  "62404",
-        "name":  "Valentineâ€™s Blaze Furnace",
+        "name":  "Valentine’s Blaze Furnace",
         "itemShortName":  "furnace",
         "category":  "Deployable",
         "itemType":  "Furnace",
@@ -115715,7 +115715,7 @@
     {
         "id":  "3446707122",
         "itemDefId":  "62906",
-        "name":  "SeÃ±or Tomato",
+        "name":  "Señor Tomato",
         "itemShortName":  "rock",
         "category":  "Weapon",
         "itemType":  "Rock",
@@ -116083,7 +116083,7 @@
     {
         "id":  "3450461010",
         "itemDefId":  "63100",
-        "name":  "SeÃ±or Tomato Door",
+        "name":  "Señor Tomato Door",
         "itemShortName":  "door.hinged.metal",
         "category":  "Deployable",
         "itemType":  "Sheet Metal Door",
@@ -119625,7 +119625,7 @@
     {
         "id":  "3511713883",
         "itemDefId":  "64505",
-        "name":  "SeÃ±or Tomato Hammer",
+        "name":  "Señor Tomato Hammer",
         "itemShortName":  "hammer",
         "category":  "Weapon",
         "itemType":  "Hammer",
@@ -120200,7 +120200,7 @@
     {
         "id":  "3525469962",
         "itemDefId":  "64802",
-        "name":  "SeÃ±or Tomato Garage Door",
+        "name":  "Señor Tomato Garage Door",
         "itemShortName":  "wall.frame.garagedoor",
         "category":  "Deployable",
         "itemType":  "Garage Door",
@@ -122868,7 +122868,7 @@
     {
         "id":  "3572974993",
         "itemDefId":  "65900",
-        "name":  "SeÃ±or Tomato Miner Hat",
+        "name":  "Señor Tomato Miner Hat",
         "itemShortName":  "hat.miner",
         "category":  "Hat",
         "itemType":  "Miner Hat",
@@ -123926,7 +123926,7 @@
     {
         "id":  "3594686237",
         "itemDefId":  "66205",
-        "name":  "SeÃ±or Tomato Large Backpack",
+        "name":  "Señor Tomato Large Backpack",
         "itemShortName":  "largebackpack",
         "category":  "Misc",
         "itemType":  "Large Backpack",
@@ -124869,7 +124869,7 @@
     {
         "id":  "3603365862",
         "itemDefId":  "66511",
-        "name":  "SeÃ±or Tomato Furnace",
+        "name":  "Señor Tomato Furnace",
         "itemShortName":  "furnace",
         "category":  "Deployable",
         "itemType":  "Furnace",
@@ -126824,7 +126824,7 @@
     {
         "id":  "3633590865",
         "itemDefId":  "67109",
-        "name":  "SeÃ±or Tomato AR",
+        "name":  "Señor Tomato AR",
         "itemShortName":  "rifle.ak",
         "category":  "Weapon",
         "itemType":  "AK47",
@@ -127560,7 +127560,7 @@
     {
         "id":  "3640106278",
         "itemDefId":  "67402",
-        "name":  "SeÃ±or Tomato SAR",
+        "name":  "Señor Tomato SAR",
         "itemShortName":  "rifle.semiauto",
         "category":  "Weapon",
         "itemType":  "Semi-Automatic Rifle",
@@ -132597,7 +132597,7 @@
     {
         "id":  "3723988781",
         "itemDefId":  "69109",
-        "name":  "SeÃ±or Tomato Thompson",
+        "name":  "Señor Tomato Thompson",
         "itemShortName":  "smg.thompson",
         "category":  "Weapon",
         "itemType":  "Thompson",
@@ -133632,7 +133632,7 @@
     {
         "id":  "3745846939",
         "itemDefId":  "69501",
-        "name":  "Ð¡rypt Electric Furnace",
+        "name":  "Сrypt Electric Furnace",
         "itemShortName":  "electric.furnace",
         "category":  "Deployable",
         "itemType":  "Electric Furnace",
