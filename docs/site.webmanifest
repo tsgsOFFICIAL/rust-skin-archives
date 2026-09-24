@@ -1,0 +1,14 @@
+{
+    "name": "Rust Skin Viewer",
+    "short_name": "Rust Skins",
+    "description": "Every Rust skin in one place, with a 3D viewer.",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#1a1a1a",
+    "theme_color": "#1a1a1a",
+    "icons": [
+        { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml" },
+        { "src": "android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" }
+    ]
+}
