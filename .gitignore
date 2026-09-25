@@ -15,6 +15,7 @@ pipeline/data/normal-scan.tsv
 
 # notes, logs and weekly reports
 pipeline/verification-log.md
+JOURNEY.md
 pipeline/data/weekly/
 *.log
 
