@@ -168,7 +168,6 @@ public static partial class Program
                 // huge whitespace-only diff in git
                 if (!(File.Exists(o.CatalogPath) && SameJson(File.ReadAllText(o.CatalogPath), catalogText)))
                 {
-                    if (File.Exists(o.CatalogPath)) File.Copy(o.CatalogPath, o.CatalogPath + ".prev", true);
                     File.WriteAllText(o.CatalogPath, catalogText, new UTF8Encoding(false));
                 }
                 if (newDigest != null) File.WriteAllText(o.DigestPath, newDigest);
@@ -478,7 +477,6 @@ public static partial class Program
             result = head + ",\r\n" + string.Join(",\r\n", fresh.Select(s => FormatDataEntry(s, o))) + "\r\n]";
         }
         JsonDocument.Parse(result).Dispose();                        // still has to be valid json
-        File.Copy(o.DataPath, o.DataPath + ".bak", true);
         File.WriteAllText(o.DataPath, result, new UTF8Encoding(true));
     }
 

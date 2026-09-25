@@ -9,7 +9,6 @@ obj/
 
 # temp and generated stuff
 *.tmp
-*.prev
 pipeline/data/batch-failures.tsv
 pipeline/data/alpha-scan.tsv
 pipeline/data/normal-scan.tsv
