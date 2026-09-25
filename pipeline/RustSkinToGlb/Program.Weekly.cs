@@ -515,10 +515,12 @@ public static partial class Program
     {
         int Run(string args) { var p = Process.Start(new ProcessStartInfo("git", args) { WorkingDirectory = o.Repo, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!; p.StandardOutput.ReadToEnd(); p.StandardError.ReadToEnd(); p.WaitForExit(); return p.ExitCode; }
         // add the paths one by one, if one is missing (no digest file on a --catalog-file run for example)
-        // git refuses the whole add. Only the data files get committed, not reports or logs.
-        foreach (var rel in new[] { "data/data.json", "data/steam-itemdefs.json", "data/steam-itemdefs.digest.txt", "../README.md" })
+        // git refuses the whole add. The data files, the site files and the new models/icons (lfs) get
+        // committed, not reports or logs.
+        foreach (var rel in new[] { "data/data.json", "data/steam-itemdefs.json", "data/steam-itemdefs.digest.txt", "data/skin-flags.json",
+                                    "../README.md", "../docs/skins.json", "../docs/icons", "../docs/models" })
             if (File.Exists(Path.Combine(o.Repo, rel)) || Directory.Exists(Path.Combine(o.Repo, rel))) Run($"add {rel}");
         int rc = Run($"commit -q -m \"Weekly update {DateTime.Now:yyyy-MM-dd}: {built}/{total} new skins built\"");
-        log(rc == 0 ? "Committed the data files to git (local commit only)." : "Nothing to commit (or git commit failed).");
+        log(rc == 0 ? "Committed to git (local commit only, nothing is pushed)." : "Nothing to commit (or git commit failed).");
     }
 }
