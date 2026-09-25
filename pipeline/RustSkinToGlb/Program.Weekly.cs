@@ -534,7 +534,7 @@ public static partial class Program
         // add the paths one by one, if one is missing (no digest file on a --catalog-file run for example)
         // git refuses the whole add. The data files, the site files and the new models/icons (lfs) get
         // committed, not reports or logs.
-        foreach (var rel in new[] { "data/data.json", "data/steam-itemdefs.json", "data/steam-itemdefs.digest.txt", "data/skin-flags.json",
+        foreach (var rel in new[] { "data/data.json", "data/steam-itemdefs.json", "data/steam-itemdefs.digest.txt", "data/skin-flags.json", "data/icon-cache.json",
                                     "../README.md", "../docs/skins.json", "../docs/icons", "../docs/models" })
             if (File.Exists(Path.Combine(o.Repo, rel)) || Directory.Exists(Path.Combine(o.Repo, rel))) Git(o, $"add {rel}");
         var (commitCode, commitOut) = Git(o, $"commit -q -m \"Weekly update {DateTime.Now:yyyy-MM-dd}: {built}/{total} new skins built\"");

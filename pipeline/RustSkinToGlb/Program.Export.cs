@@ -42,6 +42,15 @@ public static partial class Program
                 .Where(id => File.Exists(Path.Combine(glbDir, id + ".glb"))).ToList();
         var flags = LoadFlags(Path.Combine(Path.GetDirectoryName(dataPath)!, "skin-flags.json"), skinsDir, exportIds, log);
 
+        // which catalog icon url was used for each skin that gets Facepunch's icon, so it's only downloaded again when it changes
+        string iconCachePath = Path.Combine(Path.GetDirectoryName(dataPath)!, "icon-cache.json");
+        var iconCache = new Dictionary<string, string>();
+        if (File.Exists(iconCachePath))
+        {
+            try { iconCache = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(iconCachePath)) ?? iconCache; }
+            catch (JsonException) { /* unreadable, just download them again */ }
+        }
+
         var rows = new List<(long Id, string Json)>();
         var needIcons = new List<(string Id, string Url)>();
         int missingGlb = 0, missingIcon = 0, iconsCopied = 0;
@@ -56,15 +65,24 @@ public static partial class Program
 
                 string icon = Path.Combine(skinsDir, id, "icon", "icon.png");
                 string iconDest = Path.Combine(iconDir, id + ".png");
-                if (File.Exists(icon))
+                string? url = e.TryGetProperty("iconUrlLarge", out var ul) && ul.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(ul.GetString()) ? ul.GetString()
+                            : e.TryGetProperty("iconUrl", out var us) && us.ValueKind == JsonValueKind.String ? us.GetString() : null;
+                string source = e.TryGetProperty("dataSource", out var ds) && ds.ValueKind == JsonValueKind.String ? ds.GetString() ?? "" : "";
+
+                if (source != "bundle" && url != null)
+                {
+                    // workshop skins come with whatever image the author uploaded (blank, a close-up, a flat texture),
+                    // Facepunch's own icon looks like the rest of the site. The skin's own icon is only a fallback.
+                    if (!File.Exists(iconDest) && File.Exists(icon)) { File.Copy(icon, iconDest, true); iconsCopied++; }
+                    if (!File.Exists(iconDest) || !iconCache.TryGetValue(id, out var used) || used != url) needIcons.Add((id, url));
+                }
+                else if (File.Exists(icon))
                 {
                     if (!File.Exists(iconDest) || new FileInfo(iconDest).Length != new FileInfo(icon).Length) { File.Copy(icon, iconDest, true); iconsCopied++; }
                 }
                 else if (!File.Exists(iconDest))
                 {
                     // no icon from the skin itself (old skins), use the one from the catalog
-                    string? url = e.TryGetProperty("iconUrlLarge", out var ul) && ul.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(ul.GetString()) ? ul.GetString()
-                                : e.TryGetProperty("iconUrl", out var us) && us.ValueKind == JsonValueKind.String ? us.GetString() : null;
                     if (url != null) needIcons.Add((id, url)); else missingIcon++;
                 }
 
@@ -89,8 +107,11 @@ public static partial class Program
         int iconsDownloaded = 0;
         if (needIcons.Count > 0)
         {
-            iconsDownloaded = DownloadIcons(needIcons, iconDir, log);
-            missingIcon += needIcons.Count - iconsDownloaded;
+            var done = DownloadIcons(needIcons, iconDir, log);
+            iconsDownloaded = done.Count;
+            foreach (var (id, url) in needIcons.Where(n => done.Contains(n.Id))) iconCache[id] = url;
+            missingIcon += needIcons.Count(n => !done.Contains(n.Id) && !File.Exists(Path.Combine(iconDir, n.Id + ".png")));
+            File.WriteAllText(iconCachePath, JsonSerializer.Serialize(iconCache.OrderBy(k => long.Parse(k.Key)).ToDictionary(k => k.Key, k => k.Value)), new UTF8Encoding(false));
         }
 
         // newest ids first so new skins show up on top
@@ -104,12 +125,12 @@ public static partial class Program
             $"{missingGlb} without a GLB and {missingIcon} without an icon)");
     }
 
-    // Downloads icons from Facepunch (urls come from the steam catalog) for skins that don't have one.
-    // Best effort: if one fails it's only logged, the site shows its placeholder and the next export tries again.
-    // Only real PNGs get saved. Returns how many were saved.
-    private static int DownloadIcons(List<(string Id, string Url)> items, string iconDir, Action<string> log)
+    // Downloads icons from Facepunch (urls come from the steam catalog).
+    // Best effort: if one fails it's only logged, whatever icon was there stays and the next export tries again.
+    // Only real PNGs get saved. Returns the ids that were saved.
+    private static HashSet<string> DownloadIcons(List<(string Id, string Url)> items, string iconDir, Action<string> log)
     {
-        int ok = 0;
+        var ok = new HashSet<string>();
         using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("RustSkinViewerPipeline/1.0");
         foreach (var (id, url) in items)
@@ -124,7 +145,7 @@ public static partial class Program
                     if (!png) { log($"  icon {id}: not a PNG from {url}"); break; }
                     File.WriteAllBytes(dest + ".tmp", bytes);
                     File.Move(dest + ".tmp", dest, true);
-                    ok++;
+                    ok.Add(id);
                     break;
                 }
                 catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)

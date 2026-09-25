@@ -56,7 +56,7 @@ function updateBodyScrollLock() {
 }
 
 // A skin is "new" when its dateCreated (from skins.json) is within this many days.
-const NEW_SKIN_DAYS = 14;
+const NEW_SKIN_DAYS = 7;
 function isNewSkin(skin) {
 	const t = Date.parse(skin.dateCreated);
 	return !Number.isNaN(t) && Date.now() - t < NEW_SKIN_DAYS * 86400000;
@@ -310,7 +310,12 @@ function sortSkins(skins) {
 				return cb - ca;
 			});
 		case "new":
-			return arr.sort((a, b) => (isNewSkin(b) ? 1 : 0) - (isNewSkin(a) ? 1 : 0));
+			// newest first, skins without a date go last, same date falls back to the id
+			return arr.sort(
+				(a, b) =>
+					(Date.parse(b.dateCreated) || 0) - (Date.parse(a.dateCreated) || 0) ||
+					b.id.localeCompare(a.id, undefined, { numeric: true })
+			);
 		default:
 			return arr;
 	}
