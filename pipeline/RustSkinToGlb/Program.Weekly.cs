@@ -101,6 +101,15 @@ public static partial class Program
                          o.Sandbox ? Path.Combine(o.OutRoot, "docs") : Path.GetFullPath(Path.Combine(o.Repo, "..", "docs")),
                          Log);
 
+        // get up to date first, the price action commits to main on its own and this way the commit at the end
+        // doesn't get rejected. Stops here if the pull fails so nothing gets built on an old copy.
+        if (!o.Sandbox && !o.DryRun && !o.NoCommit)
+        {
+            var (pullCode, pullOut) = Git(o, "pull --rebase --autostash");
+            if (pullCode != 0) { Console.WriteLine("ERROR: git pull failed, fix that and run again:\n" + pullOut); return 2; }
+            Log("git pull: up to date");
+        }
+
         try
         {
             // 1. catalog
@@ -511,16 +520,38 @@ public static partial class Program
         if (next != text) File.WriteAllText(path, next, new UTF8Encoding(false));
     }
 
+    // runs git in the repo and returns the exit code and what it printed (stdout and stderr together)
+    private static (int Code, string Output) Git(WeeklyOptions o, string args)
+    {
+        var psi = new ProcessStartInfo("git", args) { WorkingDirectory = o.Repo, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+        using var p = Process.Start(psi)!;
+        var stdout = p.StandardOutput.ReadToEndAsync();
+        var stderr = p.StandardError.ReadToEndAsync();
+        p.WaitForExit();
+        return (p.ExitCode, (stdout.Result + stderr.Result).Trim());
+    }
+
     private static void GitCommit(WeeklyOptions o, int built, int total, Action<string> log)
     {
-        int Run(string args) { var p = Process.Start(new ProcessStartInfo("git", args) { WorkingDirectory = o.Repo, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!; p.StandardOutput.ReadToEnd(); p.StandardError.ReadToEnd(); p.WaitForExit(); return p.ExitCode; }
         // add the paths one by one, if one is missing (no digest file on a --catalog-file run for example)
         // git refuses the whole add. The data files, the site files and the new models/icons (lfs) get
         // committed, not reports or logs.
         foreach (var rel in new[] { "data/data.json", "data/steam-itemdefs.json", "data/steam-itemdefs.digest.txt", "data/skin-flags.json",
                                     "../README.md", "../docs/skins.json", "../docs/icons", "../docs/models" })
-            if (File.Exists(Path.Combine(o.Repo, rel)) || Directory.Exists(Path.Combine(o.Repo, rel))) Run($"add {rel}");
-        int rc = Run($"commit -q -m \"Weekly update {DateTime.Now:yyyy-MM-dd}: {built}/{total} new skins built\"");
-        log(rc == 0 ? "Committed to git (local commit only, nothing is pushed)." : "Nothing to commit (or git commit failed).");
+            if (File.Exists(Path.Combine(o.Repo, rel)) || Directory.Exists(Path.Combine(o.Repo, rel))) Git(o, $"add {rel}");
+        var (commitCode, commitOut) = Git(o, $"commit -q -m \"Weekly update {DateTime.Now:yyyy-MM-dd}: {built}/{total} new skins built\"");
+        if (commitCode != 0) { log("Nothing to commit (or git commit failed): " + commitOut); return; }
+        log("Committed to git");
+
+        // push, and if the remote moved in the meantime pull once more and try again
+        var (pushCode, pushOut) = Git(o, "push");
+        if (pushCode != 0)
+        {
+            log("git push was rejected, pulling and trying once more");
+            var (rebaseCode, rebaseOut) = Git(o, "pull --rebase --autostash");
+            if (rebaseCode == 0) (pushCode, pushOut) = Git(o, "push");
+            else pushOut = rebaseOut;
+        }
+        log(pushCode == 0 ? "Pushed to GitHub" : "Push failed, the commit is still local (run git push yourself): " + pushOut);
     }
 }
