@@ -5,7 +5,10 @@ const ASSET_BASE = IS_LOCAL ? "" : "https://media.githubusercontent.com/media/ts
 
 let allSkins = [];
 let currentFiltered = [];
-let currentSort = "default";
+const DEFAULT_SORT = "new";
+let currentSort = DEFAULT_SORT;
+let selectedTypes = new Set(); // itemShortName values ticked in the Type dropdown
+let typeCounts = new Map(); // itemShortName -> number of skins
 let isDayMode = true;
 let scrollY = 0;
 
@@ -113,7 +116,7 @@ function updateQueryStringFromFilters() {
 	const term = document.getElementById("searchBox").value.trim();
 	const minPrice = document.getElementById("minPrice").value.trim();
 	const maxPrice = document.getElementById("maxPrice").value.trim();
-	const typeTerm = document.getElementById("typeFilter").value.trim();
+	const typeTerm = [...selectedTypes].join(",");
 	const wantGlow = document.getElementById("glowFilter").checked;
 	const wantCutout = document.getElementById("cutoutFilter").checked;
 	const wantTwitch = document.getElementById("twitchFilter").checked;
@@ -125,7 +128,7 @@ function updateQueryStringFromFilters() {
 	if (wantGlow) params.set("glow", "1");
 	if (wantCutout) params.set("cutout", "1");
 	if (wantTwitch) params.set("twitch", "1");
-	if (currentSort && currentSort !== "default") params.set("sort", currentSort);
+	if (currentSort && currentSort !== DEFAULT_SORT) params.set("sort", currentSort);
 
 	const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
 	history.replaceState(null, "", newUrl);
@@ -136,13 +139,18 @@ function setFiltersFromQuery() {
 	document.getElementById("searchBox").value = params.get("q") || "";
 	document.getElementById("minPrice").value = params.get("minPrice") || "";
 	document.getElementById("maxPrice").value = params.get("maxPrice") || "";
-	document.getElementById("typeFilter").value = params.get("type") || "";
+	selectedTypes = new Set(
+		(params.get("type") || "")
+			.split(",")
+			.map((t) => t.trim())
+			.filter(Boolean)
+	);
 	document.getElementById("glowFilter").checked = parseBoolQueryValue(params.get("glow"));
 	document.getElementById("cutoutFilter").checked = parseBoolQueryValue(params.get("cutout"));
 	document.getElementById("twitchFilter").checked = parseBoolQueryValue(params.get("twitch"));
 
-	const sortParam = params.get("sort") || "default";
-	currentSort = ["default", "name-asc", "name-desc", "price-asc", "price-desc", "new"].includes(sortParam) ? sortParam : "default";
+	const sortParam = params.get("sort") || DEFAULT_SORT;
+	currentSort = ["name-asc", "name-desc", "price-asc", "price-desc", "new"].includes(sortParam) ? sortParam : DEFAULT_SORT;
 	document.querySelectorAll(".sort-btn").forEach((b) => {
 		b.classList.toggle("active", b.dataset.sort === currentSort);
 	});
@@ -152,6 +160,7 @@ function init() {
 	setFiltersFromQuery();
 	setupEventDelegation();
 	setupSearchDebounce();
+	setupTypeDropdown();
 	loadSkins();
 }
 
@@ -160,17 +169,12 @@ function init() {
 // via onkeyup/oninput - we override those here so the HTML stays untouched)
 function setupSearchDebounce() {
 	const searchBox = document.getElementById("searchBox");
-	const typeFilter = document.getElementById("typeFilter");
 	const minPrice = document.getElementById("minPrice");
 	const maxPrice = document.getElementById("maxPrice");
 
 	if (searchBox) {
 		searchBox.removeAttribute("onkeyup");
 		searchBox.addEventListener("input", debouncedApplyFilters);
-	}
-	if (typeFilter) {
-		typeFilter.removeAttribute("onkeyup");
-		typeFilter.addEventListener("input", debouncedApplyFilters);
 	}
 	if (minPrice) {
 		minPrice.removeAttribute("oninput");
@@ -311,11 +315,7 @@ function sortSkins(skins) {
 			});
 		case "new":
 			// newest first, skins without a date go last, same date falls back to the id
-			return arr.sort(
-				(a, b) =>
-					(Date.parse(b.dateCreated) || 0) - (Date.parse(a.dateCreated) || 0) ||
-					b.id.localeCompare(a.id, undefined, { numeric: true })
-			);
+			return arr.sort((a, b) => (Date.parse(b.dateCreated) || 0) - (Date.parse(a.dateCreated) || 0) || b.id.localeCompare(a.id, undefined, { numeric: true }));
 		default:
 			return arr;
 	}
@@ -380,8 +380,6 @@ function setupEventDelegation() {
 			const skin = skinIndexById.get(btn3d.dataset.skinId);
 			if (skin) {
 				openViewer(skin);
-				const toggle = document.querySelector("#dayNightToggle");
-				if (toggle) toggle.checked = true;
 			}
 			return;
 		}
@@ -600,8 +598,6 @@ function applyFilters(skipUrlUpdate = false) {
 	const term = document.getElementById("searchBox").value.trim();
 	let minPrice = parseFloat(document.getElementById("minPrice").value) || 0;
 	let maxPrice = parseFloat(document.getElementById("maxPrice").value) || Infinity;
-	const typeTerm = document.getElementById("typeFilter").value.toLowerCase().trim();
-
 	const wantGlow = document.getElementById("glowFilter").checked;
 	const wantCutout = document.getElementById("cutoutFilter").checked;
 	const wantTwitch = document.getElementById("twitchFilter").checked;
@@ -615,8 +611,8 @@ function applyFilters(skipUrlUpdate = false) {
 			if (cents < minPrice * 100 || cents > maxPrice * 100) return false;
 		}
 
-		const normalizedType = skin.itemShortName?.toLowerCase().trim();
-		if (typeTerm && (!normalizedType || normalizedType !== typeTerm)) return false;
+		// any ticked type may match
+		if (selectedTypes.size && !selectedTypes.has(skin.itemShortName)) return false;
 
 		if (wantGlow && skin.glow !== true) return false;
 		if (wantCutout && skin.cutout !== true) return false;
@@ -638,7 +634,8 @@ function clearFilters() {
 	document.getElementById("searchBox").value = "";
 	document.getElementById("minPrice").value = "";
 	document.getElementById("maxPrice").value = "";
-	document.getElementById("typeFilter").value = "";
+	selectedTypes.clear();
+	renderTypeDropdown();
 	document.getElementById("glowFilter").checked = false;
 	document.getElementById("cutoutFilter").checked = false;
 	document.getElementById("twitchFilter").checked = false;
@@ -650,6 +647,8 @@ const WHEEL_REEL_SPIN_ITEMS = 38;
 const WHEEL_SPIN_MS = 4500;
 let isWheelSpinning = false;
 let wheelSpinTimer = null;
+/** Skin forced for the next spin (console only, see rig()). Cleared after use. */
+let forcedWinner = null;
 
 function shuffleInPlace(array) {
 	for (let i = array.length - 1; i > 0; i--) {
@@ -679,7 +678,9 @@ function buildWheelReel(winnerSkin) {
 	const wrap = reel.closest(".wheel-viewport-wrap");
 	if (wrap) wrap.style.setProperty("--item-width", `${WHEEL_ITEM_WIDTH}px`);
 
-	reelSkins.forEach((skin, index) => {
+	const imgElements = [];
+
+	reelSkins.forEach((skin) => {
 		const item = document.createElement("div");
 		item.className = "wheel-item";
 
@@ -701,12 +702,31 @@ function buildWheelReel(winnerSkin) {
 		name.title = skin.displayName;
 
 		visual.appendChild(img);
+		imgElements.push(img);
 		item.appendChild(visual);
 		item.appendChild(name);
 		reel.appendChild(item);
 	});
 
-	return WHEEL_REEL_SPIN_ITEMS;
+	return { winIndex: WHEEL_REEL_SPIN_ITEMS, imgElements };
+}
+
+// Resolves once every reel image has loaded/errored, or after timeoutMs - whichever comes first,
+// so the spin animation never starts while icons are still blank.
+function waitForReelImages(imgElements, timeoutMs = 1500) {
+	const pending = imgElements.filter((img) => !img.complete);
+	if (pending.length === 0) return Promise.resolve();
+
+	const loaders = pending.map(
+		(img) =>
+			new Promise((resolve) => {
+				img.addEventListener("load", resolve, { once: true });
+				img.addEventListener("error", resolve, { once: true });
+			})
+	);
+
+	const timeout = new Promise((resolve) => setTimeout(resolve, timeoutMs));
+	return Promise.race([Promise.all(loaders), timeout]);
 }
 
 function getWheelCenterOffset(viewport) {
@@ -737,7 +757,7 @@ function spinWheelToSkin(winnerSkin) {
 	isWheelSpinning = true;
 	hideModal(true);
 
-	const winIndex = buildWheelReel(winnerSkin);
+	const { winIndex, imgElements } = buildWheelReel(winnerSkin);
 	showWheelOverlay();
 
 	const reel = document.getElementById("wheelSpinner");
@@ -750,15 +770,17 @@ function spinWheelToSkin(winnerSkin) {
 	reel.style.transform = `translateX(${startX}px)`;
 	void reel.offsetWidth;
 
-	reel.style.transition = `transform ${WHEEL_SPIN_MS}ms cubic-bezier(0.08, 0.82, 0.12, 1)`;
-	reel.style.transform = `translateX(${finalX}px)`;
+	waitForReelImages(imgElements).then(() => {
+		reel.style.transition = `transform ${WHEEL_SPIN_MS}ms cubic-bezier(0.08, 0.82, 0.12, 1)`;
+		reel.style.transform = `translateX(${finalX}px)`;
 
-	wheelSpinTimer = setTimeout(() => {
-		wheelSpinTimer = null;
-		isWheelSpinning = false;
-		hideWheelOverlay();
-		showSkinModal(winnerSkin, true);
-	}, WHEEL_SPIN_MS + 280);
+		wheelSpinTimer = setTimeout(() => {
+			wheelSpinTimer = null;
+			isWheelSpinning = false;
+			hideWheelOverlay();
+			showSkinModal(winnerSkin, true);
+		}, WHEEL_SPIN_MS + 280);
+	});
 }
 
 function pickRandomSkin() {
@@ -769,8 +791,47 @@ function pickRandomSkin() {
 		return;
 	}
 
-	const skin = currentFiltered[Math.floor(Math.random() * currentFiltered.length)];
+	let skin;
+	if (forcedWinner) {
+		// Prefer the instance from the filtered set, but still land on the forced skin if it is filtered out
+		skin = currentFiltered.find((s) => s.id === forcedWinner.id) || forcedWinner;
+		forcedWinner = null; // one-shot
+	} else {
+		skin = currentFiltered[Math.floor(Math.random() * currentFiltered.length)];
+	}
 	spinWheelToSkin(skin);
+}
+
+/**
+ * Console-only: force the next spin to land on a specific skin.
+ * Accepts skin id or displayName (case-insensitive, partial match).
+ * Usage:
+ *   rig("3560391580")
+ *   rig("Cel Shading Boots")
+ *   clearRig()
+ */
+function rig(idOrName) {
+	if (idOrName == null || idOrName === "") {
+		console.warn("[rig] Pass a skin id or display name.");
+		return null;
+	}
+	const q = String(idOrName).trim().toLowerCase();
+	const name = (s) => (s.displayName || "").toLowerCase();
+	const found = allSkins.find((s) => String(s.id) === q) || allSkins.find((s) => name(s) === q) || allSkins.find((s) => name(s).includes(q));
+
+	if (!found) {
+		console.warn("[rig] No skin matched:", idOrName);
+		return null;
+	}
+
+	forcedWinner = found;
+	console.log("[rig] Next spin will land on:", found.displayName, `(id ${found.id})`);
+	return found;
+}
+
+function clearRig() {
+	forcedWinner = null;
+	console.log("[rig] Cleared.");
 }
 
 // --- Modal ------------------------------------------------------
@@ -830,7 +891,7 @@ function showSkinModal(skin, showRollAgain = false) {
 	}
 
 	if (steamCents !== Infinity) {
-		appendPriceRow("Steam", steamCents, steamCents === cheapestCents, steamExternal?.externalUrl);
+		appendPriceRow("Steam", steamCents, steamCents === cheapestCents, skin.steamUrl || steamExternal?.externalUrl || `https://steamcommunity.com/market/listings/252490/${encodeURIComponent(skin.displayName)}`);
 	}
 
 	if (externalPrices.length) {
@@ -849,8 +910,6 @@ function showSkinModal(skin, showRollAgain = false) {
 		open3dButton.onclick = () => {
 			hideModal(true); // silent - keep scroll lock alive during handoff
 			openViewer(skin);
-			const toggle = document.querySelector("#dayNightToggle");
-			if (toggle) toggle.checked = true;
 		};
 	} else {
 		open3dButton.style.display = "none";
@@ -867,6 +926,11 @@ function hideModal(silent = false) {
 }
 
 function openViewer(skin) {
+	// always start in day mode so the toggle and the scene can't disagree
+	isDayMode = true;
+	const dayToggle = document.getElementById("dayNightToggle");
+	if (dayToggle) dayToggle.checked = true;
+
 	const modal = document.getElementById("viewerModal");
 	const loader = document.getElementById("viewerLoader");
 	const noModel = document.getElementById("viewerNoModel");
@@ -901,7 +965,9 @@ function openViewer(skin) {
 		noModel.style.display = "block";
 	};
 	window.Viewer3DReady.then((v) => v.open(document.getElementById("renderCanvas"), url, isDayMode))
-		.then(() => { loader.style.display = "none"; })
+		.then(() => {
+			loader.style.display = "none";
+		})
 		.catch(failed);
 }
 
@@ -917,24 +983,120 @@ function hideViewer() {
 }
 
 // prices.json is updated on its own schedule (GitHub Action, every few hours), separately from skins.json.
-// One block per source: "steam" becomes steamPriceInUsdCents, every other source becomes an externalPrices entry.
+// Each skin has a prices array of { name, price (USD cents), url }: the "Steam" entry becomes
+// steamPriceInUsdCents + steamUrl, every other market becomes an externalPrices entry.
 async function mergePrices(skins) {
 	try {
 		const res = await fetch("prices.json", { cache: "no-cache" });
 		if (!res.ok) return;
-		const sources = (await res.json()).sources || {};
+		const items = (await res.json()).items || {};
 		const byId = new Map(skins.map((s) => [s.id, s]));
-		for (const [market, block] of Object.entries(sources)) {
-			for (const [id, item] of Object.entries(block.items || {})) {
-				const skin = byId.get(id);
-				if (!skin || !(item.cents > 0)) continue;
-				if (market === "steam") skin.steamPriceInUsdCents = item.cents;
-				else (skin.externalPrices ||= []).push({ marketId: market, priceInUsdCents: item.cents, externalUrl: item.url });
+		for (const [id, item] of Object.entries(items)) {
+			const skin = byId.get(id);
+			if (!skin) continue;
+			for (const p of item.prices || []) {
+				if (!(p.price > 0)) continue;
+				if (p.name?.toLowerCase() === "steam") {
+					skin.steamPriceInUsdCents = p.price;
+					skin.steamUrl = p.url;
+				} else {
+					(skin.externalPrices ||= []).push({ marketId: p.name, priceInUsdCents: p.price, externalUrl: p.url });
+				}
 			}
 		}
 	} catch (e) {
 		console.warn("No prices available:", e);
 	}
+}
+
+// --- Type multi-select dropdown ---------------------------------------------
+function setTypeCounts(skins) {
+	typeCounts = new Map();
+	for (const s of skins) {
+		if (s.itemShortName) typeCounts.set(s.itemShortName, (typeCounts.get(s.itemShortName) || 0) + 1);
+	}
+	renderTypeDropdown();
+}
+
+// Rebuilds the checkbox list (filtered by the panel's search box) and the button label.
+function renderTypeDropdown() {
+	const list = document.getElementById("typeList");
+	const toggle = document.getElementById("typeToggle");
+	if (!list || !toggle) return;
+
+	const query = document.getElementById("typeSearch").value.trim().toLowerCase();
+	const types = [...typeCounts.keys()].sort().filter((t) => !query || t.toLowerCase().includes(query));
+
+	list.innerHTML = "";
+	if (types.length === 0) {
+		const empty = document.createElement("div");
+		empty.className = "type-empty";
+		empty.textContent = typeCounts.size ? "No matching types" : "Loading...";
+		list.appendChild(empty);
+	}
+	for (const type of types) {
+		const row = document.createElement("label");
+		row.className = "type-option";
+
+		const box = document.createElement("input");
+		box.type = "checkbox";
+		box.value = type;
+		box.checked = selectedTypes.has(type);
+
+		const name = document.createElement("span");
+		name.textContent = type;
+		const count = document.createElement("span");
+		count.className = "type-count";
+		count.textContent = typeCounts.get(type);
+
+		row.append(box, name, count);
+		list.appendChild(row);
+	}
+
+	const n = selectedTypes.size;
+	toggle.textContent = n === 0 ? "All types" : n === 1 ? [...selectedTypes][0] : `${n} types selected`;
+	toggle.classList.toggle("has-selection", n > 0);
+}
+
+function setTypePanelOpen(open) {
+	const panel = document.getElementById("typePanel");
+	panel.hidden = !open;
+	document.getElementById("typeToggle").setAttribute("aria-expanded", String(open));
+	if (open) document.getElementById("typeSearch").focus();
+}
+
+function setupTypeDropdown() {
+	const dropdown = document.getElementById("typeDropdown");
+	const panel = document.getElementById("typePanel");
+	const search = document.getElementById("typeSearch");
+
+	document.getElementById("typeToggle").addEventListener("click", () => setTypePanelOpen(panel.hidden));
+	search.addEventListener("input", renderTypeDropdown);
+
+	document.getElementById("typeList").addEventListener("change", (e) => {
+		const box = e.target;
+		if (box.type !== "checkbox") return;
+		if (box.checked) selectedTypes.add(box.value);
+		else selectedTypes.delete(box.value);
+		renderTypeDropdown();
+		applyFilters();
+	});
+
+	document.getElementById("typeClear").addEventListener("click", () => {
+		selectedTypes.clear();
+		renderTypeDropdown();
+		applyFilters();
+	});
+
+	document.addEventListener("click", (e) => {
+		if (!panel.hidden && !dropdown.contains(e.target)) setTypePanelOpen(false);
+	});
+	document.addEventListener("keydown", (e) => {
+		if (e.key === "Escape" && !panel.hidden) {
+			setTypePanelOpen(false);
+			document.getElementById("typeToggle").focus();
+		}
+	});
 }
 
 function loadSkins() {
@@ -944,6 +1106,7 @@ function loadSkins() {
 		.then(async (res) => {
 			allSkins = await res.json();
 			await mergePrices(allSkins);
+			setTypeCounts(allSkins);
 			currentFiltered = allSkins;
 			// applyFilters calls renderSkins internally - no need to call both
 			applyFilters(true);

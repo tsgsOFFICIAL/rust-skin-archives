@@ -95,8 +95,15 @@
                     </div>
 
                     <div class="filter-col">
-                        <label for="typeFilter">Type</label>
-                        <input type="text" id="typeFilter" placeholder="weapon, clothing..." onkeyup="applyFilters()">
+                        <label for="typeToggle">Type</label>
+                        <div class="type-dd" id="typeDropdown">
+                            <button type="button" id="typeToggle" class="type-toggle" aria-haspopup="true" aria-expanded="false">All types</button>
+                            <div class="type-panel" id="typePanel" hidden>
+                                <input type="text" id="typeSearch" placeholder="Find a type..." autocomplete="off" aria-label="Find a type">
+                                <div class="type-list" id="typeList"></div>
+                                <button type="button" class="type-clear" id="typeClear">Clear selection</button>
+                            </div>
+                        </div>
                     </div>
 
                     <fieldset class="toggles">
@@ -124,12 +131,11 @@
                 <!-- Sort Bar -->
                 <nav class="sort-bar" aria-label="Sort skins">
                     <span class="sort-text" aria-hidden="true">SORT</span>
-                    <button type="button" class="sort-btn active" data-sort="default" onclick="setSort(this, 'default')">DEFAULT</button>
+                    <button type="button" class="sort-btn active" data-sort="new" onclick="setSort(this, 'new')">NEWEST</button>
                     <button type="button" class="sort-btn" data-sort="name-asc" onclick="setSort(this, 'name-asc')">A–Z</button>
                     <button type="button" class="sort-btn" data-sort="name-desc" onclick="setSort(this, 'name-desc')">Z–A</button>
                     <button type="button" class="sort-btn" data-sort="price-asc" onclick="setSort(this, 'price-asc')">PRICE ↑</button>
                     <button type="button" class="sort-btn" data-sort="price-desc" onclick="setSort(this, 'price-desc')">PRICE ↓</button>
-                    <button type="button" class="sort-btn" data-sort="new" onclick="setSort(this, 'new')">NEWEST</button>
                 </nav>
 
             </section>
