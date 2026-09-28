@@ -162,9 +162,46 @@ body.scroll-lock {
     opacity: 1;
 }
 
+.credit a {
+    color: var(--text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.credit a:hover {
+    color: var(--rust-hot);
+}
+
 .credit strong {
     color: var(--text-secondary);
     font-weight: 600;
+}
+
+.site-footer {
+    max-width: 1400px;
+    margin: var(--gap-xl) auto 0;
+    padding: var(--gap-lg) var(--gap-md);
+    border-top: 1px solid var(--steel-border);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+}
+
+.site-footer p+p {
+    margin-top: 6px;
+}
+
+.site-footer a {
+    color: var(--text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color var(--t-fast);
+}
+
+.site-footer a:hover {
+    color: var(--rust-hot);
 }
 
 .heart {
@@ -775,6 +812,13 @@ body.scroll-lock {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-bottom: 10px;
+    /* Always exactly one line, even when a skin has no item type, so every card has the same height
+       (cards are positioned by the virtual scroller and don't stretch to their row). */
+    line-height: 14px;
+    height: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Inline price row injected by JS */

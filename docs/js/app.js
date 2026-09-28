@@ -890,15 +890,11 @@ function showSkinModal(skin, showRollAgain = false) {
 		pricesDiv.appendChild(row);
 	}
 
-	if (steamCents !== Infinity) {
-		appendPriceRow("Steam", steamCents, steamCents === cheapestCents, skin.steamUrl || steamExternal?.externalUrl || `https://steamcommunity.com/market/listings/252490/${encodeURIComponent(skin.displayName)}`);
-	}
-
-	if (externalPrices.length) {
-		externalPrices.forEach((p) => {
-			appendPriceRow(p.marketId, p.priceInUsdCents, p.priceInUsdCents === cheapestCents, p.externalUrl);
-		});
-	}
+	// cheapest first, ties in name order
+	const priceRows = externalPrices.map((p) => ({ label: p.marketId, cents: p.priceInUsdCents, url: p.externalUrl }));
+	if (steamCents !== Infinity) priceRows.push({ label: "Steam", cents: steamCents, url: skin.steamUrl || steamExternal?.externalUrl });
+	priceRows.sort((a, b) => a.cents - b.cents || a.label.localeCompare(b.label));
+	priceRows.forEach((r) => appendPriceRow(r.label, r.cents, r.cents === cheapestCents, r.url));
 
 	if (steamCents === Infinity && externalPrices.length === 0) {
 		pricesDiv.innerHTML += "No market prices available";
@@ -983,8 +979,9 @@ function hideViewer() {
 }
 
 // prices.json is updated on its own schedule (GitHub Action, every few hours), separately from skins.json.
-// Each skin has a prices array of { name, price (USD cents), url }: the "Steam" entry becomes
+// Each skin has a prices array of { name, price (USD cents), listings }: the "Steam" entry becomes
 // steamPriceInUsdCents + steamUrl, every other market becomes an externalPrices entry.
+// Links are built from the skin's name in market-urls.js (an entry may carry its own "url", which wins).
 async function mergePrices(skins) {
 	try {
 		const res = await fetch("prices.json", { cache: "no-cache" });
@@ -998,9 +995,9 @@ async function mergePrices(skins) {
 				if (!(p.price > 0)) continue;
 				if (p.name?.toLowerCase() === "steam") {
 					skin.steamPriceInUsdCents = p.price;
-					skin.steamUrl = p.url;
+					skin.steamUrl = marketUrl(p, skin.displayName);
 				} else {
-					(skin.externalPrices ||= []).push({ marketId: p.name, priceInUsdCents: p.price, externalUrl: p.url });
+					(skin.externalPrices ||= []).push({ marketId: p.name, priceInUsdCents: p.price, externalUrl: marketUrl(p, skin.displayName) });
 				}
 			}
 		}

@@ -1,10 +1,10 @@
 name: Update prices
 
-# updates docs/prices.json (steam market prices) every 8 hours and commits it if it changed
-# only needs docs/skins.json, no textures or models
+# updates docs/prices.json (Steam + third-party market prices from SCMM) every hour and commits it if it changed
+# one request to SCMM, takes seconds. only needs docs/skins.json, no textures or models
 on:
   schedule:
-    - cron: "17 */8 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -27,9 +27,8 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Fetch prices
-        # exit code 1 is a partial run (rate limited), it still saved what it got so don't fail the job
+        # fails the job (nothing is written or committed) if SCMM is unreachable or returns too little
         run: dotnet run --project pipeline/PriceFetcher -c Release -- --skins docs/skins.json --out docs/prices.json
-        continue-on-error: true
 
       - name: Commit if changed
         run: |
