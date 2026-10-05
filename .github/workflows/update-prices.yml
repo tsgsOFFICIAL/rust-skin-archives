@@ -1,0 +1,45 @@
+name: Update prices
+
+# updates docs/prices.json (Steam + third-party market prices from SCMM) every hour and commits it if it changed
+# one request to SCMM, takes seconds. only needs docs/skins.json, no textures or models
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# one run at a time
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Fetch prices
+        # fails the job (nothing is written or committed) if SCMM is unreachable or returns too little
+        run: dotnet run --project pipeline/PriceFetcher -c Release -- --skins docs/skins.json --out docs/prices.json
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- docs/prices.json; then
+            echo "No price changes."
+          else
+            timestamp=$(date -u '+%Y-%m-%d %H:%M UTC')
+            sed -i "s|Last price update: .*|Last price update: ${timestamp}|" README.md
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/prices.json README.md
+            git commit -m "Update prices - ${timestamp}"
+            git push
+          fi

@@ -1,0 +1,2 @@
+# the weekly job edits data.json as text, don't touch the line endings
+pipeline/data/data.json -text

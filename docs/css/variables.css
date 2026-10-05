@@ -1,0 +1,83 @@
+/* ===============================================
+   RUST SKIN VIEWER - DESIGN TOKENS
+   Aesthetic: Industrial decay, corroded steel,
+   military surplus, post-apocalyptic survivalism.
+   =============================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap');
+
+:root {
+    /* -- Core Palette -- */
+    --rust: #c0392b;
+    /* oxidised iron red */
+    --rust-hot: #e74c3c;
+    /* fresh rust accent */
+    --rust-dark: #7d1a10;
+    /* deep oxide */
+    --rust-dim: #8b2e22;
+    /* muted rust */
+
+    --steel: #1a1a1a;
+    /* near-black background */
+    --steel-mid: #242424;
+    /* card surface */
+    --steel-light: #2e2e2e;
+    /* elevated surface */
+    --steel-border: #3a3a3a;
+    /* border / rule */
+    --steel-muted: #555;
+    /* tertiary text */
+
+    --plate: #111111;
+    /* deepest background */
+    --grime: #0d0d0d;
+    /* absolute void */
+
+    --gold: #d4a017;
+    /* worn brass */
+    --gold-hot: #f0b429;
+    /* highlight brass */
+    --teal-dim: #2a7a6e;
+    /* steam blue-green */
+    --teal: #38b2ac;
+    /* steam price */
+
+    --text-primary: #e8e0d4;
+    /* aged parchment white */
+    --text-secondary: #a09888;
+    /* faded ink */
+    --text-dim: #6b6058;
+    /* barely there */
+
+    --hazard: #f39c12;
+    /* warning orange */
+    --safe: #27ae60;
+    /* go / cheapest */
+
+    /* -- Typography -- */
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Barlow', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+
+    /* -- Spacing -- */
+    --gap-xs: 4px;
+    --gap-sm: 8px;
+    --gap-md: 16px;
+    --gap-lg: 24px;
+    --gap-xl: 40px;
+
+    /* -- Radius -- */
+    --r-sm: 2px;
+    --r-md: 4px;
+
+    /* -- Shadows -- */
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, .6);
+    --shadow-lift: 0 8px 32px rgba(0, 0, 0, .8);
+    --shadow-rust: 0 0 20px rgba(192, 57, 43, .25);
+    --shadow-glow: 0 0 30px rgba(192, 57, 43, .4);
+
+    /* -- Transitions -- */
+    --t-fast: 150ms ease;
+    --t-mid: 250ms ease;
+    --t-slow: 400ms ease;
+}
