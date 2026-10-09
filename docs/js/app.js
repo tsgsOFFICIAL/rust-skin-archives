@@ -839,7 +839,25 @@ function showSkinModal(skin, showRollAgain = false) {
 	document.getElementById("modalName").textContent = skin.displayName;
 	document.getElementById("modalShort").textContent = skin.itemShortName || "";
 
-	const pricesDiv = document.getElementById("modalPrices");
+	renderPrices(skin, document.getElementById("modalPrices"));
+
+	const open3dButton = document.getElementById("open3dButton");
+	if (skin.modelUrls && skin.modelUrls.length > 0) {
+		open3dButton.style.display = "inline-flex";
+		open3dButton.onclick = () => {
+			hideModal(true); // silent - keep scroll lock alive during handoff
+			openViewer(skin);
+		};
+	} else {
+		open3dButton.style.display = "none";
+	}
+
+	document.getElementById("randomModal").style.display = "flex";
+	document.getElementById("rollAgainButton").style.display = showRollAgain ? "block" : "none";
+	updateBodyScrollLock();
+}
+
+function renderPrices(skin, pricesDiv) {
 	pricesDiv.innerHTML = "<strong>Prices:</strong>";
 
 	const externalPricesRaw = (skin.externalPrices || []).filter((p) => p.priceInUsdCents > 0);
@@ -897,21 +915,6 @@ function showSkinModal(skin, showRollAgain = false) {
 	if (steamCents === Infinity && externalPrices.length === 0) {
 		pricesDiv.innerHTML += "No market prices available";
 	}
-
-	const open3dButton = document.getElementById("open3dButton");
-	if (skin.modelUrls && skin.modelUrls.length > 0) {
-		open3dButton.style.display = "inline-flex";
-		open3dButton.onclick = () => {
-			hideModal(true); // silent - keep scroll lock alive during handoff
-			openViewer(skin);
-		};
-	} else {
-		open3dButton.style.display = "none";
-	}
-
-	document.getElementById("randomModal").style.display = "flex";
-	document.getElementById("rollAgainButton").style.display = showRollAgain ? "block" : "none";
-	updateBodyScrollLock();
 }
 
 function hideModal(silent = false) {
@@ -932,6 +935,8 @@ function openViewer(skin) {
 	const container = document.getElementById("viewerContainer");
 
 	document.getElementById("viewerName").textContent = skin.displayName;
+	document.getElementById("viewerShort").textContent = skin.itemShortName || "";
+	renderPrices(skin, document.getElementById("viewerPrices"));
 
 	const hasModel = skin.modelUrls && skin.modelUrls.length > 0;
 

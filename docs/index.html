@@ -205,29 +205,40 @@
         <div class="modal" id="viewerModal" role="dialog" aria-modal="true" aria-labelledby="viewerName" onclick="if(event.target.id==='viewerModal') hideViewer()">
             <article class="modal-content viewer-content" onclick="event.stopImmediatePropagation()">
 
-                <header class="viewer-top">
-                    <h2 id="viewerName"></h2>
-                    <label class="day-toggle" title="Toggle day/night lighting">
-                        <input type="checkbox" id="dayNightToggle" checked onchange="toggleDayNight(this.checked)">
-                        <span>DAY</span>
-                    </label>
-                </header>
+                <div class="viewer-layout">
+                    <div class="viewer-main">
+                        <div id="viewerContainer">
+                            <canvas id="renderCanvas" touch-action="none" aria-label="3D model viewer"></canvas>
+                            <div id="viewerLoader" class="loader" aria-live="polite" aria-label="Loading 3D model">
+                                <div class="spinner" role="img" aria-label="Loading"></div>
+                                <p>LOADING MODEL</p>
+                            </div>
+                        </div>
 
-                <div id="viewerContainer">
-                    <canvas id="renderCanvas" touch-action="none" aria-label="3D model viewer"></canvas>
-                    <div id="viewerLoader" class="loader" aria-live="polite" aria-label="Loading 3D model">
-                        <div class="spinner" role="img" aria-label="Loading"></div>
-                        <p>LOADING MODEL</p>
+                        <p id="viewerNoModel" class="no-model" aria-live="polite">No 3D model available.</p>
+
+                        <p class="viewer-hint" aria-label="Controls: drag to rotate, scroll to zoom, right-click to pan">
+                            DRAG TO ROTATE &bull; SCROLL TO ZOOM &bull; RIGHT CLICK TO PAN
+                        </p>
                     </div>
+
+                    <aside class="viewer-side">
+                        <header class="viewer-top">
+                            <div>
+                                <h2 id="viewerName"></h2>
+                                <p id="viewerShort" class="viewer-short"></p>
+                            </div>
+                            <label class="day-toggle" title="Toggle day/night lighting">
+                                <input type="checkbox" id="dayNightToggle" checked onchange="toggleDayNight(this.checked)">
+                                <span>DAY</span>
+                            </label>
+                        </header>
+
+                        <div id="viewerPrices" class="modal-prices" aria-label="Market prices"></div>
+
+                        <button type="button" onclick="hideViewer()" class="btn-secondary close-btn">CLOSE VIEWER</button>
+                    </aside>
                 </div>
-
-                <p id="viewerNoModel" class="no-model" aria-live="polite">No 3D model available.</p>
-
-                <p class="viewer-hint" aria-label="Controls: drag to rotate, scroll to zoom, right-click to pan">
-                    DRAG TO ROTATE &bull; SCROLL TO ZOOM &bull; RIGHT CLICK TO PAN
-                </p>
-
-                <button type="button" onclick="hideViewer()" class="btn-secondary close-btn">CLOSE VIEWER</button>
 
             </article>
         </div>

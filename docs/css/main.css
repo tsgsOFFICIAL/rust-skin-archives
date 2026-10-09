@@ -1228,11 +1228,45 @@ body.scroll-lock {
    =============================================== */
 
 .viewer-content {
-    max-width: 860px;
+    max-width: 1400px;
+    width: calc(100% - 48px);
     padding: var(--gap-lg);
+}
+
+.viewer-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--gap-lg);
+    align-items: stretch;
+}
+
+.viewer-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    min-width: 0;
+}
+
+.viewer-side {
     display: flex;
     flex-direction: column;
     gap: var(--gap-md);
+    min-height: 0;
+}
+
+.viewer-side .modal-prices {
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.viewer-short {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 4px;
 }
 
 .viewer-top {
@@ -1308,7 +1342,7 @@ body.scroll-lock {
 #viewerContainer {
     position: relative;
     width: 100%;
-    aspect-ratio: 16/9;
+    height: min(75vh, 760px);
     background: var(--grime);
     border: 1px solid var(--steel-border);
     border-radius: var(--r-sm);
@@ -1436,6 +1470,17 @@ body.scroll-lock {
 
     .viewer-content {
         padding: var(--gap-md);
+        width: calc(100% - 32px);
+    }
+}
+
+@media (max-width: 900px) {
+    .viewer-layout {
+        grid-template-columns: 1fr;
+    }
+
+    #viewerContainer {
+        height: 55vh;
     }
 }
 
