@@ -6,7 +6,7 @@
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Prices   | [![Prices](https://github.com/tsgsOFFICIAL/rust-skin-archives/actions/workflows/update-prices.yml/badge.svg)](https://github.com/tsgsOFFICIAL/rust-skin-archives/actions/workflows/update-prices.yml) |
 
-Last price update: 2026-10-17 19:42 UTC
+Last price update: 2026-10-17 22:37 UTC
 
 Last full asset update: 2026-10-16 09:21 UTC
 
