@@ -96,6 +96,27 @@ public static partial class Program
         string apiKey = Environment.GetEnvironmentVariable("STEAM_API_KEY") ?? "";
         var problems = new List<string>();
         void Log(string s) { Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {Scrub(s, apiKey)}"); }
+        string deployState = "not needed", gitState = "not run";
+        // the last thing printed, so the end state is readable without scrolling through the wrangler / steamcmd output.
+        // Also saved next to the run folders as last-run.txt
+        void Summary(string result, List<NewSkin>? done, int removedCount)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine().AppendLine("==================== WEEKLY UPDATE SUMMARY ====================");
+            sb.AppendLine($"Result:    {result}");
+            if (done != null)
+            {
+                sb.AppendLine($"Skins:     {done.Count(s => s.Status == "built")} built / {done.Count} attempted, {removedCount} gone from the catalog");
+                foreach (var g in done.Where(s => s.Status != "built").GroupBy(s => s.Status))
+                    sb.AppendLine($"  {g.Key}: {string.Join(", ", g.Select(s => $"{s.Name} ({s.Id})"))}");
+            }
+            sb.AppendLine($"Assets:    {deployState}");
+            sb.AppendLine($"Git:       {gitState}");
+            sb.AppendLine($"Report:    {runDir}");
+            sb.AppendLine("================================================================");
+            Console.Write(Scrub(sb.ToString(), apiKey));
+            if (!o.Sandbox) File.WriteAllText(Path.Combine(dataDir, "weekly", "last-run.txt"), Scrub(sb.ToString(), apiKey));
+        }
         // called on every exit that isn't a dry run: rewrites docs/skins.json, puts the icons in assets/icons,
         // compresses new models into assets/models and uploads assets/ when something changed
         void Export()
@@ -111,10 +132,11 @@ public static partial class Program
             if (icons > 0 || compressed > 0) File.WriteAllText(marker, DateTime.Now.ToString("s"));
             if (File.Exists(marker) && !o.NoDeploy)
             {
-                if (DeployAssets(assets, Log)) { File.Delete(marker); Log("Assets uploaded"); }
-                else Log("Upload not finished, it will be tried again on the next run");
+                if (DeployAssets(assets, Log)) { File.Delete(marker); Log("Assets uploaded"); deployState = "uploaded to Cloudflare Pages"; }
+                else { Log("Upload not finished, it will be tried again on the next run"); deployState = "UPLOAD NOT FINISHED, retried next run"; }
             }
-            if (failed > 0) Log($"{failed} model(s) failed to compress, see above");
+            else if (o.NoDeploy && File.Exists(marker)) deployState = "upload pending (--no-deploy)";
+            if (failed > 0) { Log($"{failed} model(s) failed to compress, see above"); deployState += $", {failed} model(s) failed to compress"; }
         }
 
         // get up to date first, the price action commits to main on its own and this way the commit at the end
@@ -194,7 +216,7 @@ public static partial class Program
                 }
                 if (newDigest != null) File.WriteAllText(o.DigestPath, newDigest);
             }
-            if (skins.Count == 0) { WriteReport(runDir, o, skins, removed, newDigest, problems, false); Log("No new skins."); Export(); return 0; }
+            if (skins.Count == 0) { WriteReport(runDir, o, skins, removed, newDigest, problems, false); Log("No new skins."); Export(); Summary("SUCCESS - nothing new this week", skins, removed.Count); return 0; }
 
             // 3. download
             string content = Path.Combine(o.SteamCmdDir, "steamapps", "workshop", "content", AppId);
@@ -284,8 +306,9 @@ public static partial class Program
             WriteReport(runDir, o, skins, removed, newDigest, problems, false);
             Log($"Stage 7: report written to {runDir}");
             if (!o.Sandbox && skins.Any(s => s.Status == "built")) UpdateReadmeStamp(o);
-            if (!o.NoCommit) GitCommit(o, skins.Count(s => s.Status == "built"), skins.Count, Log);
+            gitState = o.NoCommit ? "skipped (--no-commit / sandbox)" : GitCommit(o, skins.Count(s => s.Status == "built"), skins.Count, Log);
             Log(problems.Count == 0 ? "Done - everything built." : $"Done - {problems.Count} item(s) need attention (see report.md).");
+            Summary(problems.Count == 0 ? "SUCCESS - everything built" : $"NEEDS ATTENTION - {problems.Count} item(s), see report.md", skins, removed.Count);
             return problems.Count == 0 ? 0 : 1;
         }
         catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.Unauthorized)
@@ -296,6 +319,7 @@ public static partial class Program
         catch (Exception ex)
         {
             Console.WriteLine("ERROR: " + "Weekly update failed: " + Scrub(ex.ToString(), apiKey));
+            Summary("FAILED - " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0], null, 0);
             return 2;
         }
     }
@@ -551,7 +575,7 @@ public static partial class Program
         return (p.ExitCode, (stdout.Result + stderr.Result).Trim());
     }
 
-    private static void GitCommit(WeeklyOptions o, int built, int total, Action<string> log)
+    private static string GitCommit(WeeklyOptions o, int built, int total, Action<string> log)
     {
         // add the paths one by one, if one is missing (no digest file on a --catalog-file run for example)
         // git refuses the whole add. Only the data files and skins.json get committed, models and icons live on
@@ -560,7 +584,7 @@ public static partial class Program
                                     "../README.md", "../docs/skins.json" })
             if (File.Exists(Path.Combine(o.Repo, rel)) || Directory.Exists(Path.Combine(o.Repo, rel))) Git(o, $"add {rel}");
         var (commitCode, commitOut) = Git(o, $"commit -q -m \"Weekly update {DateTime.Now:yyyy-MM-dd}: {built}/{total} new skins built\"");
-        if (commitCode != 0) { log("Nothing to commit (or git commit failed): " + commitOut); return; }
+        if (commitCode != 0) { log("Nothing to commit (or git commit failed): " + commitOut); return "NOTHING COMMITTED (nothing to commit, or commit failed)"; }
         log("Committed to git");
 
         // push, and if the remote moved in the meantime pull once more and try again
@@ -573,5 +597,6 @@ public static partial class Program
             else pushOut = rebaseOut;
         }
         log(pushCode == 0 ? "Pushed to GitHub" : "Push failed, the commit is still local (run git push yourself): " + pushOut);
+        return pushCode == 0 ? "committed and pushed" : "COMMITTED BUT PUSH FAILED, run git push yourself";
     }
 }

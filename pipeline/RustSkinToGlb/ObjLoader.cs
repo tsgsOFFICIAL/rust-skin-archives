@@ -288,6 +288,66 @@ public sealed record RawMesh(
         return new RawMesh(np, nu, nn, ni);
     }
 
+    // swings a hatch lid that's modelled standing open back down onto the frame: every island whose lowest Y
+    // is at or above minY turns -90 degrees around the Z axis through (pivotX, pivotY), so the part that
+    // pointed up now points along +X. Islands that reach below shaftY are the ladder shaft: the plate whose top
+    // end is at lowerPivotY is the lower lid, it swings shut the other way (+90 degrees around the same
+    // hinge line, at lowerPivotY), the rest (the ladder) is removed. Everything else (frame) stays.
+    public RawMesh CloseHinge(float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)
+    {
+        int n = Positions.Count;
+        int[] parent = Enumerable.Range(0, n).ToArray();
+        int Find(int x) { while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+        // vertices are split at UV seams and hard edges, so weld by position first or one plate falls into
+        // several islands (and half of it would land on the wrong side of the Y thresholds)
+        var firstAt = new Dictionary<(int, int, int), int>();
+        for (int v = 0; v < n; v++)
+        {
+            var (px, py, pz) = Positions[v];
+            var key = ((int)MathF.Round(px * 10000f), (int)MathF.Round(py * 10000f), (int)MathF.Round(pz * 10000f));
+            if (firstAt.TryGetValue(key, out int first)) parent[Find(v)] = Find(first); else firstAt[key] = v;
+        }
+        for (int i = 0; i < Indices.Count; i += 3)
+            { parent[Find(Indices[i])] = Find(Indices[i+1]); parent[Find(Indices[i])] = Find(Indices[i+2]); }
+
+        var lowestY = new Dictionary<int, float>();
+        var highestY = new Dictionary<int, float>();
+        for (int v = 0; v < n; v++)
+        {
+            int r = Find(v);
+            lowestY[r] = lowestY.TryGetValue(r, out float lo) ? Math.Min(lo, Positions[v].y) : Positions[v].y;
+            highestY[r] = highestY.TryGetValue(r, out float hi) ? Math.Max(hi, Positions[v].y) : Positions[v].y;
+        }
+
+        var np = new List<(float x, float y, float z)>(Positions);
+        var nn = new List<(float x, float y, float z)>(Normals);
+        var dropped = new HashSet<int>();
+        for (int v = 0; v < n; v++)
+        {
+            int r = Find(v);
+            var (x, y, z) = Positions[v];
+            if (lowestY[r] >= minY)
+            {
+                np[v] = (pivotX + (y - pivotY), pivotY - (x - pivotX), z);
+                if (v < nn.Count) { var (nx, ny, nz) = nn[v]; nn[v] = (ny, -nx, nz); }
+            }
+            else if (lowestY[r] < shaftY)
+            {
+                if (highestY[r] < lowerPivotY - 0.05f) { dropped.Add(r); continue; }
+                np[v] = (pivotX - (y - lowerPivotY), lowerPivotY + (x - pivotX), z);
+                if (v < nn.Count) { var (nx, ny, nz) = nn[v]; nn[v] = (-ny, nx, nz); }
+            }
+        }
+
+        var ni = new List<int>(Indices.Count);
+        for (int i = 0; i < Indices.Count; i += 3)
+        {
+            if (dropped.Contains(Find(Indices[i]))) continue;
+            ni.Add(Indices[i]); ni.Add(Indices[i+1]); ni.Add(Indices[i+2]);
+        }
+        return new RawMesh(np, Uvs, nn, ni);
+    }
+
     // keeps the triangles whose centre Z is between minZ and maxZ (either can be null)
     // rough fallback split for a merged OBJ with no groups and no clean islands. The real boundary
     // isn't a straight Z plane so there's a small seam error

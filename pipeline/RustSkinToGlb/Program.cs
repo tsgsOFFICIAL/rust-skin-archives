@@ -44,7 +44,9 @@ public sealed record PartInput(
     // rough group split by Z range (see ObjLoader.FilterByZRange)
     (float? minZ, float? maxZ)? ZRange = null,
     // plain transparent pane (shop front glass): solid tint at this opacity, glTF BLEND
-    float? GlassAlpha = null);
+    float? GlassAlpha = null,
+    // swing a lid modelled standing open shut (see RawMesh.CloseHinge)
+    (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null);
 
 public static partial class Program
 {
@@ -397,6 +399,8 @@ public static partial class Program
                     rawMesh = rawMesh.StripIslandsByXOffset(maxAbsX);
                 if (part.ZRange is { } zRange)
                     rawMesh = rawMesh.FilterByZRange(zRange.minZ, zRange.maxZ);
+                if (part.CloseHinge is { } hinge)
+                    rawMesh = rawMesh.CloseHinge(hinge.pivotX, hinge.pivotY, hinge.minY, hinge.shaftY, hinge.lowerPivotY);
                 if (verbose) Console.WriteLine($"    {rawMesh.Positions.Count} verts, {rawMesh.Indices.Count / 3} tris");
 
                 if (verbose) Console.WriteLine($"    building material...");
@@ -551,7 +555,9 @@ public static partial class Program
         // render this mesh as see-through glass with this opacity instead of a skin texture
         float? GlassAlpha = null,
         // real glass texture from the game to use instead of a plain tint, the alpha is set to GlassAlpha
-        string? GlassTexture = null);
+        string? GlassTexture = null,
+        // lid modelled standing open: swing it shut (see RawMesh.CloseHinge), (pivotX, pivotY, minY, shaftY, lowerPivotY)
+        (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null);
 
     private sealed record ItemConfig(string ObjDir, IReadOnlyList<MeshGroupMapping> Meshes, float StripIslandsFraction = 0f, float ScaleFactor = 1f, bool FirstObjectOnly = false, float StripSmallIslandsFraction = 0f, int ObjectIndex = -1, bool StripSmallestIsland = false, float? StripSideIslandsMaxAbsX = null,
         // rotation in degrees around the model origin so every item stands upright and faces the camera.
@@ -620,6 +626,21 @@ public static partial class Program
     new[]
     {
         new MeshGroupMapping("triangle_ladder_hatch", "triangle_ladder_hatch_workshopsource.obj", 0),
+    }),
+["Armored Ladder Hatch"] = new ItemConfig(
+    Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
+    new[]
+    {
+        // the lid is modelled standing open at the -X edge (hinge at x -0.67, lid from y 0.15 up), swing it shut; the lower lid (plate with the purple eye, top end at y -0.26) swings shut under the frame, the ladder in the shaft is left out and drop the ladder below
+        new MeshGroupMapping("armored_ladder_hatch", "armored_ladder_hatch_workshopsource.obj", 0,
+            CloseHinge: (-0.67f, 0.22f, 0.1f, -0.5f, -0.26f)),
+    }),
+["Armored Triangle Ladder Hatch"] = new ItemConfig(
+    Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
+    new[]
+    {
+        new MeshGroupMapping("armored_triangle_ladder_hatch", "armored_triangle_ladder_hatch_workshopsource.obj", 0,
+            CloseHinge: (-0.67f, 0.22f, 0.1f, -0.5f, -0.26f)),
     }),
 // Item types added 2026-09-21 (new in the Steam item catalog, the meshes came with a game update).
 // Each is one OBJ with one manifest texture group (checked on every local skin of the type).
@@ -1371,7 +1392,9 @@ public static partial class Program
         // floor decor: on a skin browsing site these should face the viewer like a card and not
         // lie flat like in the game, RotX 90 tips them up
         ["Rug"] = (90, 0, 0), ["Bearskin Rug"] = (90, 0, 0), ["Sleeping Bag"] = (90, 0, 0),
-        ["Ladder Hatch"] = (90, 0, 0), ["Triangle Ladder Hatch"] = (90, 0, 0),
+        ["Ladder Hatch"] = (90, 0, 0), ["Armored Ladder Hatch"] = (90, 0, 0),
+        // the triangle frames point along +X, RotZ 90 after the tip up turns the point to the top
+        ["Triangle Ladder Hatch"] = (90, 0, 90), ["Armored Triangle Ladder Hatch"] = (90, 0, 90),
         // the shop front panel was edge-on (sideways), RotY 90 turns the face to the camera
         ["Metal Shop Front"] = (0, 90, 0),
         // the miner hat's lamp housing showed its underside to the camera, RotX 180 flips it
@@ -1522,7 +1545,8 @@ public static partial class Program
                 emissionColour,
                 config.StripSideIslandsMaxAbsX,
                 mesh.ZRange,
-                mesh.GlassAlpha
+                mesh.GlassAlpha,
+                mesh.CloseHinge
             );
         }).Where(p => p is not null).Select(p => p!).ToList();
     }
