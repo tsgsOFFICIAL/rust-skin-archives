@@ -1426,6 +1426,29 @@ body.scroll-lock {
     align-self: flex-end;
 }
 
+/* open / close and in-world buttons under the prices */
+.viewer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.viewer-actions[hidden],
+.viewer-actions [hidden] {
+    display: none;
+}
+
+.viewer-actions .btn-secondary {
+    flex: 1 1 130px;
+    min-width: 0;
+}
+
+.viewer-actions .btn-secondary.active {
+    border-color: var(--rust-hot);
+    color: var(--text-primary);
+    background: rgba(192, 57, 43, .15);
+}
+
 /* ===============================================
    RESPONSIVE
    =============================================== */

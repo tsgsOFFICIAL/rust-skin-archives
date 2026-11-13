@@ -963,15 +963,57 @@ function openViewer(skin) {
 		loader.style.display = "none";
 		noModel.style.display = "block";
 	};
-	window.Viewer3DReady.then((v) => v.open(document.getElementById("renderCanvas"), url, isDayMode))
+	setViewerActions(false, false);
+	// on a local dev server the models built into ../assets/models are used first (so a rebuilt model shows up before it is
+	// uploaded), the hosted ones are the fallback
+	const localUrl = ["localhost", "127.0.0.1"].includes(location.hostname) ? new URL(`../assets/models/${skin.modelUrls[0]}`, location.href).href : null;
+	const openIn = (v, u) => v.open(document.getElementById("renderCanvas"), u, isDayMode, { shortName: skin.itemShortName });
+	window.Viewer3DReady.then((v) => (localUrl ? openIn(v, localUrl).catch(() => openIn(v, url)) : openIn(v, url)))
 		.then(() => {
 			loader.style.display = "none";
+			// the buttons only make sense once the model is on screen: open / close for models with moving parts
+			window.Viewer3DReady.then((v) => setViewerActions(true, v.hasAnimation()));
 		})
 		.catch(failed);
 }
 
+// the buttons under the prices in the viewer: "in world" for every model, open / close when it has moving parts
+function setViewerActions(show, animated) {
+	const bar = document.getElementById("viewerActions");
+	const anim = document.getElementById("animToggle");
+	const world = document.getElementById("worldToggle");
+	if (!bar) return;
+	bar.hidden = !show;
+	anim.hidden = !animated;
+	anim.textContent = "OPEN";
+	anim.classList.remove("active");
+	world.textContent = "VIEW IN WORLD";
+	world.classList.remove("active");
+}
+
+function toggleAnimation() {
+	window.Viewer3DReady.then((v) => {
+		const open = v.setOpen();
+		const btn = document.getElementById("animToggle");
+		btn.textContent = open ? "CLOSE" : "OPEN";
+		btn.classList.toggle("active", open);
+	});
+}
+
+function toggleWorld() {
+	window.Viewer3DReady.then(async (v) => {
+		const on = await v.setWorld();
+		const btn = document.getElementById("worldToggle");
+		btn.textContent = on ? "BACK TO MODEL" : "VIEW IN WORLD";
+		btn.classList.toggle("active", on);
+		const hint = document.querySelector(".viewer-hint");
+		if (hint) hint.style.visibility = "visible";
+	});
+}
+
 function hideViewer() {
 	document.getElementById("viewerModal").style.display = "none";
+	setViewerActions(false, false);
 	updateBodyScrollLock();
 
 	if (window.Viewer3DReady) window.Viewer3DReady.then((v) => v.close());

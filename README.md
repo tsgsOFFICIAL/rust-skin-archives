@@ -17,7 +17,7 @@ A searchable archive of Rust workshop skins with an in-browser 3D viewer and pri
 - **Search and filters:** free-text search (`type:`, `name:`, `id:` also work), min/max price, a multi-select item type dropdown, and Glow / Cutout / Twitch toggles. The filters are kept in the URL, so a filtered view can be shared.
 - **Sorting:** newest first by default, or A-Z, Z-A and price.
 - **Prices:** the skin popup lists every market's lowest price, cheapest first with a BEST badge, and each row links to that market.
-- **3D viewer:** rotate and zoom any skin's model, with day and night lighting.
+- **3D viewer:** rotate and zoom any skin's model, with day and night lighting. Ladder hatches have an open / close button, and **View in world** puts any skin where it is used in the game (worn on a mannequin, set into a wall or floor, standing in a room, on a workbench).
 - **Random skin:** a spinning wheel that picks from the current filters.
 
 ## Layout

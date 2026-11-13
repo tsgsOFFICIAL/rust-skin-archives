@@ -48,7 +48,16 @@ public sealed record PartInput(
     // swing a lid modelled standing open shut (see RawMesh.CloseHinge)
     (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null,
     // the skin itself is glass (glass rock): keeps its textures, glTF transmission at this strength
-    float? SkinAlpha = null);
+    float? SkinAlpha = null,
+    // animated parts (ladder hatches, see HatchRig.cs): the part becomes a named node, under ParentNode if set, and
+    // Anim says how it moves between closed and open. SplitBy / SplitGroup keep one group of an island split,
+    // KeepIslands keeps only the islands it accepts
+    string? NodeName = null,
+    string? ParentNode = null,
+    HatchAnim? Anim = null,
+    Func<IslandBox, int>? SplitBy = null,
+    int SplitGroup = -1,
+    Func<IslandBox, bool>? KeepIslands = null);
 
 public static partial class Program
 {
@@ -112,6 +121,10 @@ public static partial class Program
         if (args.Length >= 1 && args[0] == "--scan-alpha") { Environment.ExitCode = ScanAlphaMain(args.Skip(1).ToArray()); return; }
 
         // only the site export (offline), writes docs/skins.json and docs/icons (see Program.Export.cs)
+        if (args.Length >= 3 && args[0] == "--world-texture") { Environment.ExitCode = WorldTextureMain(args.Skip(1).ToArray()); return; }
+        // textures for the viewer's in-world scene (see Program.World.cs)
+        if (args.Length >= 3 && args[0] == "--build-world-textures") { Environment.ExitCode = BuildWorldTexturesMain(args.Skip(1).ToArray()); return; }
+
         if (args.Length >= 1 && args[0] == "--export-viewer") { Environment.ExitCode = ExportViewerMain(); return; }
 
         // debug: checks every ItemConfig against a real manifest and its OBJ files
@@ -384,6 +397,12 @@ public static partial class Program
         string workDir = Path.Combine(Path.GetTempPath(), "RustSkinToGlb_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workDir);
 
+        // see "parts that share a texture group" below, and the animated hatch nodes by name
+        var repacked = new Dictionary<string, (string Orm, string BaseColor)>();
+        var normals = new Dictionary<string, string>();
+        var animNodes = new Dictionary<string, SharpGLTF.Scenes.NodeBuilder>();
+        SharpGLTF.Scenes.NodeBuilder? itemRoot = null;
+
         try
         {
             foreach (var part in parts)
@@ -410,22 +429,38 @@ public static partial class Program
                     rawMesh = rawMesh.FilterByZRange(zRange.minZ, zRange.maxZ);
                 if (part.CloseHinge is { } hinge)
                     rawMesh = rawMesh.CloseHinge(hinge.pivotX, hinge.pivotY, hinge.minY, hinge.shaftY, hinge.lowerPivotY);
+                if (part.KeepIslands is { } keepIslands) rawMesh = rawMesh.KeepIslands(keepIslands);
+                if (part.SplitBy is { } splitBy) rawMesh = rawMesh.SplitIslands(splitBy, part.SplitGroup);
+                if (rawMesh.Indices.Count == 0)
+                {
+                    Console.WriteLine($"  - {part.PartName}: no triangles left after the island split - skipping.");
+                    continue;
+                }
                 if (verbose) Console.WriteLine($"    {rawMesh.Positions.Count} verts, {rawMesh.Indices.Count / 3} tris");
 
                 if (verbose) Console.WriteLine($"    building material...");
-                string ormPath = Path.Combine(workDir, $"{part.PartName}_orm.png");
-                string baseColorPath = Path.Combine(workDir, $"{part.PartName}_basecolor.png");
-                var result = TextureRepacker.BuildOrmAndBaseColor(
-                    part.MainTexPath, part.SpecGlossMapPath, part.OcclusionMapPath,
-                    glossinessScale: part.Glossiness, occlusionStrength: part.OcclusionStrength,
-                    metallicGlossPath: part.MetallicGlossMapPath,
-                    dielectric: dielectric);
-                using (result.Orm)
-                using (result.BaseColor)
+                // parts that share a texture group (the pieces of a hatch rig) share the repacked textures, building
+                // them is the slow part
+                string texKey = string.Join("|", part.MainTexPath, part.SpecGlossMapPath, part.OcclusionMapPath,
+                    part.MetallicGlossMapPath, part.Glossiness, part.OcclusionStrength);
+                if (!repacked.TryGetValue(texKey, out var repackedPaths))
                 {
-                    result.Orm.SaveAsPng(ormPath);
-                    result.BaseColor.SaveAsPng(baseColorPath);
+                    string ormFile = Path.Combine(workDir, $"{part.PartName}_orm.png");
+                    string baseFile = Path.Combine(workDir, $"{part.PartName}_basecolor.png");
+                    var result = TextureRepacker.BuildOrmAndBaseColor(
+                        part.MainTexPath, part.SpecGlossMapPath, part.OcclusionMapPath,
+                        glossinessScale: part.Glossiness, occlusionStrength: part.OcclusionStrength,
+                        metallicGlossPath: part.MetallicGlossMapPath,
+                        dielectric: dielectric);
+                    using (result.Orm)
+                    using (result.BaseColor)
+                    {
+                        result.Orm.SaveAsPng(ormFile);
+                        result.BaseColor.SaveAsPng(baseFile);
+                    }
+                    repacked[texKey] = repackedPaths = (ormFile, baseFile);
                 }
+                string ormPath = repackedPaths.Orm, baseColorPath = repackedPaths.BaseColor;
 
                 var material = new MaterialBuilder(part.PartName)
                     .WithMetallicRoughnessShader()
@@ -467,10 +502,15 @@ public static partial class Program
 
                 if (part.BumpMapPath is not null)
                 {
-                    string normalPath = Path.Combine(workDir, $"{part.PartName}_normal.png");
-                    using (var normal = TextureRepacker.UnpackUnityNormalMap(part.BumpMapPath, part.BumpScale))
+                    string normalKey = part.BumpMapPath + "|" + part.BumpScale;
+                    if (!normals.TryGetValue(normalKey, out var normalPath))
                     {
-                        normal.SaveAsPng(normalPath);
+                        normalPath = Path.Combine(workDir, $"{part.PartName}_normal.png");
+                        using (var normal = TextureRepacker.UnpackUnityNormalMap(part.BumpMapPath, part.BumpScale))
+                        {
+                            normal.SaveAsPng(normalPath);
+                        }
+                        normals[normalKey] = normalPath;
                     }
                     material.WithChannelImage(KnownChannel.Normal, normalPath);
                 }
@@ -492,7 +532,19 @@ public static partial class Program
                 var transform = (scaleV.HasValue || rotQ.HasValue)
                     ? new SharpGLTF.Transforms.AffineTransform(scaleV, rotQ, null)
                     : SharpGLTF.Transforms.AffineTransform.Identity;
-                scene.AddRigidMesh(meshBuilder, transform);
+                if (part.NodeName is null)
+                    scene.AddRigidMesh(meshBuilder, transform);
+                else
+                {
+                    // an animated piece: a node of its own, in a hierarchy under one "item" node that carries the
+                    // item's orientation (the pieces keep the OBJ's coordinates, so the pivots in HatchAnim are OBJ ones)
+                    itemRoot ??= new SharpGLTF.Scenes.NodeBuilder("item") { LocalTransform = transform };
+                    var parentNode = part.ParentNode is not null && animNodes.TryGetValue(part.ParentNode, out var pn) ? pn : itemRoot;
+                    var node = parentNode.CreateNode(part.NodeName);
+                    if (part.Anim is { } anim) node.Extras = anim.ToJson();
+                    animNodes[part.NodeName] = node;
+                    scene.AddRigidMesh(meshBuilder, node);
+                }
                 if (verbose) Console.WriteLine($"    done.");
             }
 
@@ -576,7 +628,12 @@ public static partial class Program
         // real glass texture from the game to use instead of a plain tint, the alpha is set to GlassAlpha
         string? GlassTexture = null,
         // lid modelled standing open: swing it shut (see RawMesh.CloseHinge), (pivotX, pivotY, minY, shaftY, lowerPivotY)
-        (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null);
+        (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null,
+        // animated part of a ladder hatch, see PartInput.NodeName and HatchRig.cs
+        string? NodeName = null, string? ParentNode = null, HatchAnim? Anim = null,
+        Func<IslandBox, int>? SplitBy = null, int SplitGroup = -1, Func<IslandBox, bool>? KeepIslands = null,
+        // load this object of the OBJ file (the `o` lines, in file order) instead of the config's ObjectIndex
+        int? ObjectIndex = null);
 
     private sealed record ItemConfig(string ObjDir, IReadOnlyList<MeshGroupMapping> Meshes, float StripIslandsFraction = 0f, float ScaleFactor = 1f, bool FirstObjectOnly = false, float StripSmallIslandsFraction = 0f, int ObjectIndex = -1, bool StripSmallestIsland = false, float? StripSideIslandsMaxAbsX = null,
         // rotation in degrees around the model origin so every item stands upright and faces the camera.
@@ -633,34 +690,23 @@ public static partial class Program
         new MeshGroupMapping("doubledoor_toptier_l", "doubledoor.toptier_L_LOD0.obj", 0),
         new MeshGroupMapping("doubledoor_toptier_r", "doubledoor.toptier_R_LOD0.obj", 0),
     }),
-// ladder hatches: one manifest group, every object in the file (frame, hatch, cap, slider) uses it
+// ladder hatches: one manifest group, every piece uses it. Each piece is its own animated node (see HatchRig.cs): the plain
+// hatches are cap / frame / lid / slider objects in one file, the lid (with the slider and cap on it) hinges up at the -X
+// edge. Their ladder is not in the skinnable's meshes, it's in the game's placement guide mesh (GameMeshRefs).
 ["Ladder Hatch"] = new ItemConfig(
     Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
-    new[]
-    {
-        new MeshGroupMapping("ladder_hatch", "ladder_hatch_workshopsource.obj", 0),
-    }),
+    PlainHatchParts("ladder_hatch_workshopsource.obj", cap: 0, frame: 1, lid: 2, slider: 3,
+        Path.Combine(GameMeshRefs, "ladder.hatch"), "floor.ladder.hatch.guide.obj")),
 ["Triangle Ladder Hatch"] = new ItemConfig(
     Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
-    new[]
-    {
-        new MeshGroupMapping("triangle_ladder_hatch", "triangle_ladder_hatch_workshopsource.obj", 0),
-    }),
+    PlainHatchParts("triangle_ladder_hatch_workshopsource.obj", cap: 0, frame: 2, lid: 1, slider: 3,
+        Path.Combine(GameMeshRefs, "ladder.hatch.triangle"), "floor.triangle.ladder.hatch.guide.obj")),
 ["Armored Ladder Hatch"] = new ItemConfig(
     Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
-    new[]
-    {
-        // the lid is modelled standing open at the -X edge (hinge at x -0.67, lid from y 0.15 up), swing it shut; the lower lid (plate with the purple eye, top end at y -0.26) swings shut under the frame, the ladder in the shaft is left out and drop the ladder below
-        new MeshGroupMapping("armored_ladder_hatch", "armored_ladder_hatch_workshopsource.obj", 0,
-            CloseHinge: (-0.67f, 0.22f, 0.1f, -0.5f, -0.26f)),
-    }),
+    ArmoredHatchParts("armored_ladder_hatch_workshopsource.obj")),
 ["Armored Triangle Ladder Hatch"] = new ItemConfig(
     Path.Combine(WorkshopSourceRoot, "ladder_hatches"),
-    new[]
-    {
-        new MeshGroupMapping("armored_triangle_ladder_hatch", "armored_triangle_ladder_hatch_workshopsource.obj", 0,
-            CloseHinge: (-0.67f, 0.22f, 0.1f, -0.5f, -0.26f)),
-    }),
+    ArmoredHatchParts("armored_triangle_ladder_hatch_workshopsource.obj")),
 // Item types added 2026-09-21 (new in the Steam item catalog, the meshes came with a game update).
 // Each is one OBJ with one manifest texture group (checked on every local skin of the type).
 ["Small Backpack"] = new ItemConfig(
@@ -1563,7 +1609,7 @@ public static partial class Program
                 config.FirstObjectOnly,
                 config.StripSmallIslandsFraction,
                 mesh.IslandRank,
-                config.ObjectIndex,
+                mesh.ObjectIndex ?? config.ObjectIndex,
                 config.StripSmallestIsland,
                 metallicGloss is not null && File.Exists(metallicGloss) ? metallicGloss : null,
                 rot.X, rot.Y, rot.Z,
@@ -1573,7 +1619,8 @@ public static partial class Program
                 mesh.ZRange,
                 mesh.GlassAlpha,
                 mesh.CloseHinge,
-                SeeThroughSkins.TryGetValue(workshopId, out var seeThrough) ? seeThrough : null
+                SeeThroughSkins.TryGetValue(workshopId, out var seeThrough) ? seeThrough : null,
+                mesh.NodeName, mesh.ParentNode, mesh.Anim, mesh.SplitBy, mesh.SplitGroup, mesh.KeepIslands
             );
         }).Where(p => p is not null).Select(p => p!).ToList();
     }
