@@ -24,18 +24,18 @@ const BENCH = (o = {}) => ({ kind: "bench", ...o });
 
 const SPECS = {
 	// head
-	"hat.beenie": W("head", { top: 1.8 }),
-	"hat.cap": W("head", { top: 1.8 }),
-	"hat.boonie": W("head", { top: 1.8 }),
-	"hat.miner": W("head", { top: 1.8 }),
-	"bucket.helmet": W("head", { top: 1.8 }),
-	"riot.helmet": W("head", { top: 1.8 }),
-	"wood.armor.helmet": W("head", { top: 1.8 }),
-	"burlap.headwrap": W("head", { top: 1.8 }),
-	"coffeecan.helmet": W("head", { top: 1.8 }),
+	"hat.beenie": W("head", { top: 1.76 }),
+	"hat.cap": W("head", { top: 1.76 }),
+	"hat.boonie": W("head", { top: 1.76 }),
+	"hat.miner": W("head", { top: 1.76 }),
+	"bucket.helmet": W("head", { top: 1.76 }),
+	"riot.helmet": W("head", { top: 1.76 }),
+	"wood.armor.helmet": W("head", { top: 1.76 }),
+	"burlap.headwrap": W("head", { top: 1.76 }),
+	"coffeecan.helmet": W("head", { top: 1.76 }),
 	// face
 	"mask.balaclava": W("head", { cy: 1.58 }),
-	"mask.bandana": W("head", { cy: 1.54 }),
+	"mask.bandana": W("head", { cy: 1.56 }),
 	"metal.facemask": W("head", { cy: 1.58 }),
 	"deer.skull.mask": W("head", { cy: 1.62 }),
 	// torso
@@ -338,6 +338,65 @@ function skyDome(day) {
 	return m;
 }
 
+// front-to-back extent of a body part at the height window [y0, y1] within |x| < w: the trunk without arms and feet
+function trunkZ(part, [y0, y1, w]) {
+	let lo = Infinity, hi = -Infinity;
+	const v = new THREE.Vector3();
+	part.updateMatrixWorld(true);
+	part.traverse((m) => {
+		if (!m.isMesh) return;
+		const p = m.geometry.attributes.position;
+		for (let i = 0; i < p.count; i++) {
+			v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld);
+			if (v.y >= y0 && v.y <= y1 && Math.abs(v.x) < w) { lo = Math.min(lo, v.z); hi = Math.max(hi, v.z); }
+		}
+	});
+	return [lo, hi];
+}
+
+// The garment's sleeves hang lower and less far forward than the body's arms, so they stick out behind the arm as flaps. Measure
+// how far apart the two are at the cuff and bend the garment's sleeves (both sides) onto the arm, fading in from the shoulder.
+function fitSleeves(torso, model) {
+	const v = new THREE.Vector3();
+	const mean = (root, a0, a1) => {
+		let n = 0, y = 0, z = 0;
+		root.updateMatrixWorld(true);
+		root.traverse((m) => {
+			if (!m.isMesh) return;
+			const p = m.geometry.attributes.position;
+			for (let i = 0; i < p.count; i++) {
+				v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld);
+				const a = Math.abs(v.x);
+				if (a >= a0 && a <= a1) { n++; y += v.y; z += v.z; }
+			}
+		});
+		return n > 8 ? { y: y / n, z: z / n } : null;
+	};
+	const b = mean(torso, 0.42, 0.52), g = mean(model, 0.42, 0.52);
+	if (!b || !g) return;
+	const clamp = (x) => Math.max(-0.2, Math.min(0.2, x));
+	const dy = clamp(b.y - g.y), dz = clamp(b.z - g.z);
+	const inv = new THREE.Matrix4();
+	model.traverse((m) => {
+		if (!m.isMesh) return;
+		m.geometry = m.geometry.clone(); // geometry is shared between clones of the model
+		const p = m.geometry.attributes.position;
+		inv.copy(m.matrixWorld).invert();
+		for (let i = 0; i < p.count; i++) {
+			v.fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld);
+			const t = Math.min(1, Math.max(0, (Math.abs(v.x) - 0.2) / 0.3));
+			const s = t * t * (3 - 2 * t);
+			v.y += dy * s;
+			v.z += dz * s;
+			v.applyMatrix4(inv);
+			p.setXYZ(i, v.x, v.y, v.z);
+		}
+		p.needsUpdate = true;
+		m.geometry.computeBoundingBox();
+		m.geometry.computeBoundingSphere();
+	});
+}
+
 // ---- the scenes ----
 // buildWorld sets the model down, in metres, y up, facing +Z (the camera looks from +Z so an item's face is what you see). The
 // scenery is real building pieces: floors are 3 m tiles (top at y = 0.1), walls 3 m wide and high.
@@ -370,17 +429,40 @@ export function buildWorld(spec, model, helpers) {
 		case "wear": {
 			group.add(piece("stone.floor", 0, -0.1, 0));
 			const body = PLAYER.clone(true);
-			if (spec.slot === "legs") body.remove(body.getObjectByName("shorts")); // the item is the legwear, cut-outs show skin like in the game
+			// the underwear stays under legwear: ripped or cut-out trousers show it, not bare skin
+			// the game hides the body under clothes, here the legs are slimmed so they stay inside flat trouser panels
+			if (spec.slot === "torso") body.getObjectByName("torso").scale.set(0.96, 1, 0.85);
+			if (spec.slot === "legs") for (const n of ["shorts", "legs"]) body.getObjectByName(n).scale.set(0.93, 1, 0.8);
 			group.add(body);
+			group.updateMatrixWorld(true);
 			place((b) => {
 				const c = b.getCenter(new THREE.Vector3());
 				let dy = 0;
 				if (spec.top !== undefined) dy = spec.top - b.max.y;
 				else if (spec.bottom !== undefined) dy = spec.bottom - b.min.y;
 				else if (spec.cy !== undefined) dy = spec.cy - c.y;
-				const dz = spec.slot === "back" ? -0.17 - c.z : spec.slot === "hands" ? 0.33 - c.z : -c.z;
-				holder.position.set(-c.x, dy, dz);
+				// clothing meshes are made around the body part they cover, so centre them on that part of this body (front to back too)
+				const part = body.getObjectByName({ torso: "torso", legs: "legs", head: "head", feet: "feet" }[spec.slot]);
+				const pc = part ? new THREE.Box3().setFromObject(part).getCenter(new THREE.Vector3()) : null;
+				const dz = spec.slot === "back" ? -0.17 - c.z : spec.slot === "hands" ? 0.33 - c.z : (pc ? pc.z : 0) - c.z;
+				// the garment is thinner front to back than the body it goes over: stretch it over the trunk so the back is not inside the body
+				let sz = 1, zc = pc ? pc.z : 0;
+				const win = { torso: [1.1, 1.45, 0.18], legs: [0.85, 1.05, 0.3] }[spec.slot];
+				if (part && win) {
+					const [z0, z1] = trunkZ(part, win);
+					sz = 1.15; // a bit thicker than the mesh so no body skin comes through
+					zc = (z0 + z1) / 2;
+				}
+				if (spec.slot === "hands") {
+					// gloves are made as a pair around the middle of the two hands
+					const hc = new THREE.Box3().setFromObject(body.getObjectByName("hands")).getCenter(new THREE.Vector3());
+					holder.position.set(hc.x - c.x, hc.y - c.y, hc.z - c.z);
+					return;
+				}
+				holder.scale.z = sz;
+				holder.position.set(-c.x, dy, zc - c.z * sz);
 			});
+			if (spec.slot === "torso") { holder.updateMatrixWorld(true); fitSleeves(body.getObjectByName("torso"), model); }
 			const head = spec.slot === "head";
 			const feet = spec.slot === "feet";
 			cam.target = head ? [0, 1.6, 0] : feet ? [0, 0.35, 0] : spec.slot === "legs" ? [0, 0.7, 0] : [0, 1.15, 0];

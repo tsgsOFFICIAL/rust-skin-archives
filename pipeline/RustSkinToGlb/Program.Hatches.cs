@@ -34,9 +34,9 @@ public static partial class Program
     {
         new MeshGroupMapping("frame", obj, 0, ObjectIndex: 0, NodeName: "frame"),
         new MeshGroupMapping("lid", obj, 0, ObjectIndex: 1, SplitBy: HatchRig.ClassifyArmoredRig, SplitGroup: HatchRig.ArmoredLid,
-            NodeName: "lid", Anim: new HatchAnim((-0.67f, 0.22f, 0f), (0f, 0f, 1f), -90f, 0f, Start: 0f, End: 0.5f)),
+            NodeName: "lid", Anim: new HatchAnim((-0.80f, 0.245f, 0f), (0f, 0f, 1f), -90f, 0f, Start: 0f, End: 0.5f)),
         new MeshGroupMapping("lower", obj, 0, ObjectIndex: 1, SplitBy: HatchRig.ClassifyArmoredRig, SplitGroup: HatchRig.ArmoredLower,
-            NodeName: "lower", Anim: new HatchAnim((-0.67f, -0.26f, 0f), (0f, 0f, 1f), 90f, 0f, Start: 0.2f, End: 0.7f)),
+            NodeName: "lower", Anim: new HatchAnim((-0.80f, -0.265f, 0f), (0f, 0f, 1f), 90f, 0f, Start: 0.2f, End: 0.7f)),
         new MeshGroupMapping("ladder1", obj, 0, ObjectIndex: 1, SplitBy: HatchRig.ClassifyArmoredRig, SplitGroup: HatchRig.ArmoredSec1,
             NodeName: "ladder1", ParentNode: "lower"),
         new MeshGroupMapping("ladder2", obj, 0, ObjectIndex: 1, SplitBy: HatchRig.ClassifyArmoredRig, SplitGroup: HatchRig.ArmoredSec2,
