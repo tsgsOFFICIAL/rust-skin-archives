@@ -46,7 +46,9 @@ public sealed record PartInput(
     // plain transparent pane (shop front glass): solid tint at this opacity, glTF BLEND
     float? GlassAlpha = null,
     // swing a lid modelled standing open shut (see RawMesh.CloseHinge)
-    (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null);
+    (float pivotX, float pivotY, float minY, float shaftY, float lowerPivotY)? CloseHinge = null,
+    // the skin itself is glass (glass rock): keeps its textures, glTF transmission at this strength
+    float? SkinAlpha = null);
 
 public static partial class Program
 {
@@ -351,6 +353,13 @@ public static partial class Program
         Console.WriteLine($"Failures logged to {failLogPath}");
     }
 
+    // skins that are see-through in the game although the manifest has nothing for it (opaque _MainTex, _Cutoff 0),
+    // workshop id -> transmission (1 = clear glass). The values are estimates
+    private static readonly Dictionary<string, float> SeeThroughSkins = new()
+    {
+        ["3826858434"] = 0.9f,   // Fused Glass Rock
+    };
+
     // cloth/leather item types, never metal, so they're built fully non-metal (see "dielectric" in TextureRepacker)
     private static readonly HashSet<string> NonMetalItemTypes = new() { "Small Backpack", "Large Backpack" };
 
@@ -428,7 +437,17 @@ public static partial class Program
                 // A manifest _Cutoff of exactly 0 or 1 seems to mean "no cutout" (every AK47 group has one),
                 // real masking only showed up at in-between values (0.5 on a hoodie whose transparent design
                 // is in the MainTex alpha, forcing opaque made it a solid white patch).
-                if (part.GlassAlpha is not null)
+                if (part.SkinAlpha is float skinAlpha)
+                {
+                    // the manifest says nothing about it, the transparency is in the skin's shader in the game.
+                    // Real glass (KHR_materials_transmission) and not alpha blending: a blended rock only goes dark
+                    // against the viewer's black background, the glass look is the smooth normal mapped surface
+                    // catching the studio lights. The base colour is the glass tint, roughness is low
+                    material.WithAlpha(AlphaMode.OPAQUE);
+                    material.UseChannel(KnownChannel.Transmission).Parameter = new System.Numerics.Vector4(skinAlpha, 0f, 0f, 0f);
+                    material.UseChannel(KnownChannel.MetallicRoughness).Parameter = new System.Numerics.Vector4(0f, 0.12f, 0f, 0f);
+                }
+                else if (part.GlassAlpha is not null)
                     material.WithAlpha(AlphaMode.BLEND);
                 else if (part.Cutoff > 0f && part.Cutoff < 1f)
                     material.WithAlpha(AlphaMode.MASK, part.Cutoff);
@@ -1092,6 +1111,13 @@ public static partial class Program
     {
         new MeshGroupMapping("semi_pistol_mesh", "semi_pistol_mesh.obj", 0),
     }),
+// Item type added 2026-11-07 (first skins for the nailgun, the mesh came with the game update)
+["Nailgun"] = new ItemConfig(
+    Path.Combine(WorkshopSourceRoot, "pistol.nailgun"),
+    new[]
+    {
+        new MeshGroupMapping("nailgun", "v_nailgun.obj", 0),
+    }),
 ["Sheet Metal Door"] = new ItemConfig(
     Path.Combine(WorkshopSourceRoot, "door.hinged.metal"),
     new[]
@@ -1382,7 +1408,7 @@ public static partial class Program
         ["Mp5"] = (0, 90, 0), ["Python"] = (0, 90, 0), ["Revolver"] = (0, 90, 0),
         ["Rocket Launcher"] = (0, 90, 0), ["SKS"] = (0, 90, 0), ["Semi-Automatic Pistol"] = (0, 90, 0),
         ["Semi-Automatic Rifle"] = (0, 90, 0), ["Thompson"] = (0, 90, 0),
-        ["Waterpipe Shotgun"] = (0, 90, 0), ["Pump Shotgun"] = (0, 90, 0),
+        ["Waterpipe Shotgun"] = (0, 90, 0), ["Pump Shotgun"] = (0, 90, 0), ["Nailgun"] = (0, 90, 0),
         // double doors and the garage door are sideways, RotY 90 turns them to the camera
         ["Armored Double Door"] = (0, 90, 0), ["Sheet Metal Double Door"] = (0, 90, 0),
         ["Wooden Double Door"] = (0, 90, 0), ["Garage Door"] = (0, 90, 0),
@@ -1546,7 +1572,8 @@ public static partial class Program
                 config.StripSideIslandsMaxAbsX,
                 mesh.ZRange,
                 mesh.GlassAlpha,
-                mesh.CloseHinge
+                mesh.CloseHinge,
+                SeeThroughSkins.TryGetValue(workshopId, out var seeThrough) ? seeThrough : null
             );
         }).Where(p => p is not null).Select(p => p!).ToList();
     }

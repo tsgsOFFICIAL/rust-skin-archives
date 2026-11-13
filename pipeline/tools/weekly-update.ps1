@@ -9,6 +9,8 @@ param([switch]$DryRun, [switch]$NoWait)
 
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
+# wrangler / npm print UTF-8 (emoji); without this the console shows them as mojibake
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $logDir = Join-Path $repo 'data\weekly\logs'
 New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir ("{0:yyyy-MM-dd_HHmm}.log" -f (Get-Date))
@@ -20,7 +22,7 @@ if ($LASTEXITCODE -ne 0) { "BUILD FAILED" | Tee-Object -FilePath $log -Append; e
 $exe = Join-Path $repo 'RustSkinToGlb\bin\Release\net8.0\RustSkinToGlb.exe'
 $opts = @('--weekly')
 if ($DryRun) { $opts += '--dry-run' }
-& $exe @opts 2>&1 | Tee-Object -FilePath $log -Append
+& $exe @opts 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log -Append
 $code = $LASTEXITCODE
 
 # the summary block is the last thing the exe prints; keep the window open so it can be read after the run.

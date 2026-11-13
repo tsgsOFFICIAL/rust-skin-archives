@@ -225,7 +225,7 @@ public static partial class Program
         }
         EnsureAssetsSupportFiles(assetsDir);
         log("Uploading assets to Cloudflare Pages (only changed files are sent)");
-        var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c npx --yes wrangler pages deploy \"{assetsDir}\" --project-name {AssetsProject} --branch main")
+        var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c npx --yes wrangler pages deploy \"{assetsDir}\" --project-name {AssetsProject} --branch main --commit-dirty=true")
         { WorkingDirectory = assetsDir, UseShellExecute = false };
         using var p = System.Diagnostics.Process.Start(psi)!;
         if (!p.WaitForExit((int)TimeSpan.FromHours(3).TotalMilliseconds)) { try { p.Kill(true); } catch { } log("Upload timed out"); return false; }
