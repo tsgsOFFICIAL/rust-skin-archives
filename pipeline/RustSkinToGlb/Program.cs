@@ -371,6 +371,7 @@ public static partial class Program
     private static readonly Dictionary<string, float> SeeThroughSkins = new()
     {
         ["3826858434"] = 0.9f,   // Fused Glass Rock
+        ["3835897215"] = 0.9f,   // Fused Glass Furnace
     };
 
     // cloth/leather item types, never metal, so they're built fully non-metal (see "dielectric" in TextureRepacker)
@@ -479,8 +480,15 @@ public static partial class Program
                     // against the viewer's black background, the glass look is the smooth normal mapped surface
                     // catching the studio lights. The base colour is the glass tint, roughness is low
                     material.WithAlpha(AlphaMode.OPAQUE);
-                    material.UseChannel(KnownChannel.Transmission).Parameter = new System.Numerics.Vector4(skinAlpha, 0f, 0f, 0f);
-                    material.UseChannel(KnownChannel.MetallicRoughness).Parameter = new System.Numerics.Vector4(0f, 0.12f, 0f, 0f);
+                    // these glass skins ship a flat blue placeholder _MainTex (the glass is a shader in the game), so using
+                    // it as base colour made the whole model solid blue. Clear glass gets a neutral white base instead and
+                    // the look comes from transmission, low roughness and the normal map.
+                    material.RemoveChannel(KnownChannel.BaseColor);
+                    material.UseChannel(KnownChannel.BaseColor).Parameters.CombinedVector = System.Numerics.Vector4.One;
+                    material.UseChannel(KnownChannel.Transmission).Parameters[KnownProperty.TransmissionFactor] = skinAlpha;
+                    var mr = material.UseChannel(KnownChannel.MetallicRoughness).Parameters;
+                    mr[KnownProperty.MetallicFactor] = 0f;
+                    mr[KnownProperty.RoughnessFactor] = 0.12f;
                 }
                 else if (part.GlassAlpha is not null)
                     material.WithAlpha(AlphaMode.BLEND);
