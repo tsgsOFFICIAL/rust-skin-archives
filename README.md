@@ -8,7 +8,7 @@
 
 Last price update: 2026-11-27 02:23 UTC
 
-Last full asset update: 2026-11-19 17:09 UTC
+Last full asset update: 2026-11-27 05:01 UTC
 
 A searchable archive of Rust workshop skins with an in-browser 3D viewer and prices from 16 markets.
 
